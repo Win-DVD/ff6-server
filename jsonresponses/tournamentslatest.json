@@ -1,0 +1,23 @@
+{
+    "result": {
+        "id": "133769",
+        "name": "baller",
+        "message": "iz cool",
+        "starts": 1700587613,
+        "ends": 1700587613,
+        "rank": 1,
+        "ended": true,
+        "score": 100,
+        "isTestTrackEvent": false,
+        "racemodes": ["drag_ladder_e_01", "drag_ladder_e_02"],
+        "racetypes": ["ladder", "ladder"],
+        "min": 1,
+        "max": 10,
+        "prizes": 5,
+        "messages": 2,
+        "restXp": {
+            "current": 50,
+            "enabled": true
+        }
+    }
+}    

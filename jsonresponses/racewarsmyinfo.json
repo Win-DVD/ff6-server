@@ -1,0 +1,38 @@
+{
+    "result": {
+        "bestStreak": 10,
+        "currentStreak": 5,
+        "score": 1000,
+        "rank": 1,
+        "nextpm": {
+            "point": 2000,
+            "items": [
+                {
+                    "n": "supernos",
+                    "q": 1,
+                    "t": 1
+                },
+                {
+                    "n": "supernos",
+                    "q": 1,
+                    "t": 1
+                }
+            ]
+        },
+        "nextsm": {
+            "streak": 6,
+            "items": [
+                {
+                    "n": "supernos",
+                    "q": 1,
+                    "t": 1
+                },
+                {
+                    "n": "supernos",
+                    "q": 1,
+                    "t": 1
+                }
+            ]
+        }
+    }    
+}

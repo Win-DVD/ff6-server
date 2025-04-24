@@ -1,0 +1,22 @@
+{
+    "result": {
+        "tokens": [
+            {
+                "token": "bronze",
+                "count": 10
+            },
+            {
+                "token": "silver",
+                "count": 20
+            },
+            {
+                "token": "gold",
+                "count": 30
+            },
+            {
+                "token": "platinum",
+                "count": 30
+            }
+        ]
+    }
+}

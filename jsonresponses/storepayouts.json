@@ -1,0 +1,29 @@
+{
+    "result": {
+        "payoutSets": [
+            {
+                "payouts": [
+                    {
+                        "productId": "1",
+                        "cost": 2.99,
+                        "numOfIGC": 100,
+                        "coststring": "$1.99",
+                        "thirdPartyId": "com.kabam.fast.299",
+                        "show": true,
+                        "payoutid": 123
+                    },
+                    {
+                        "productId": "2",
+                        "cost": 4.99,
+                        "numOfIGC": 500,
+                        "coststring": "$4.99",
+                        "thirdPartyId": "com.example.product2",
+                        "show": true,
+                        "payoutid": 456
+                    }
+                ]
+            }
+        ]
+    },
+    "externalTrkid": "periodic_subscriptions@965d75c8b0d1c8bdcd66bb4a4c37de2c,3e518b9500bc0b3835ca234b612e146e:#11aaf2cd1ed71f536eb8b62cd7235c99:googleapp"
+}

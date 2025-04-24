@@ -1,0 +1,14 @@
+{
+    "result": [
+        {
+            "tuning.ShowDefaultCarAsOwned": true,
+            "tuning.StoreCurrencyBonusInPercentage": true,
+            "tuning.GrantFuelOnLevelup": true,
+            "tuning.ToggleDelay": 0,
+            "tuning.SoundMinRadius": 0,
+            "tuning.FlipCarSuccessSpeedMultiplier": 1.5,
+            "tuning.DeliveryCostLevel1": 0,
+            "tuning.DeliveryTimeLevel1": 0
+        }
+    ]
+}

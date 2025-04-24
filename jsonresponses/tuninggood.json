@@ -1,0 +1,204 @@
+[
+    {
+        "bool": {
+            "ShowDefaultCarAsOwned": true,
+            "StoreCurrencyBonusInPercentage": true,
+            "GrantFuelOnLevelup": true
+        },
+        "string": {
+            "BeginnerSaleFreeCarName": "car_attribute_bmw_m3_e30",
+            "SamsungDeviceKeyName": "SAMSUNG",
+            "SamsungGalaxyDeviceKeyName": "GT-I9500&SGH-I337&SCH-I545&SPH-L720>-I9505&SCH-I959&SCH-R970&SGH-M919>-I9502&SHV-E300L&SGH-M919V&SGH-N045&SCH-R970X>-I9508&SHV-E300K&SC-04E>-I9295&SCH-R343&SHV-E300S&TST_GalaxyJ&SHV-E330K&SHV-E330L&SGH-I537>-I9505T&SGH-I337M>-I9505X&SCH-R970C&SGH-M919N>-I9508C&SHV-E330S",
+            "URL_MOVIES": "https://itunes.apple.com/WebObjects/MZStore.woa/wa/viewMultiRoom?cc=us&fcId=309249015",
+            "URL_MOVIES_GOOGLE": "https://play.google.com/store/search?q=fast+and+furious&c=movies",
+            "URL_AMC": "http://www.amctheatres.com/movies/fast-furious-6?utm_campaign=fast_furious&utm_medium=banner&utm_source=partner&utm_content=universal",
+            "URL_AMC_GOOGLE": "http://www.amctheatres.com/movies/fast-furious-6?utm_campaign=fast_furious&utm_medium=banner&utm_source=partner&utm_content=universal",
+            "URL_SOUNDTRACK": "https://itunes.apple.com/us/album/rest-my-life-feat.-usher-david/id575411295",
+            "URL_SOUNDTRACK_GOOGLE": "https://play.google.com/store/music/album/Ludacris_Rest_Of_My_Life?id=B3r46m7gbz65255uqa2pefhxgoa&feature=nav_result",
+            "URL_TRAILER": "http://www.youtube.com/watch?feature=player_embedded&v=p1QgNF6J1h0",
+            "ForumUrl": "http://community.kabam.com/forums/forumdisplay.php?934-Fast-and-Furious-6-The-Game"
+        },
+        "float": {
+            "TopBarTextAnimDuration": 2,
+            "AutoLaunchTime": 1,
+            "PerfectLaunchBoostTorque": [
+                60,
+                60,
+                60,
+                60,
+                60
+            ],
+            "ButtonDisableAlpha": 0.1,
+            "MaxGripStatValue": 100,
+            "MaxPowerStatValue": 1000,
+            "MinWeightStatValue": 1000,
+            "MaxWeightStatValue": 2500,
+            "MaxGearBoxStatValue": 100,
+            "MaxSuspensionStatValue": 100,
+            "MaxFlywheelShiftDelay": 1,
+            "EnginePowerMagicMultiplier": 1.1,
+            "TimeToDisplayStoryPopups": 1.5,
+            "UnlockMsgBlendSpeed": 1,
+            "UnlockMsgHoldDuration": 3,
+            "LockedPriceAlpha": 0.2,
+            "CameraDistanceThreshold": 7,
+            "ThresholdsForReallyWinning": 3,
+            "CameraLerpSpeed": 1,
+            "MapExtentBuffer": 50,
+            "WheelBlurSpeed": 15,
+            "MinLoadingScreenTime": 2,
+            "RaceXpMultiplier": 1,
+            "LossXpMultiplier": 0.1,
+            "bigarrow_uiAmplitude": 20,
+            "bigarrow_uiSpeed": 1,
+            "bigarrow_uiSquish": 1,
+            "GarageFrontWheelAngle": 20,
+            "XpForSoftCurrencyMultiplier": 0.015,
+            "XpForHardCurrencyMultiplier": 0.02,
+            "SoftToHardCurrencyConversion": 0.02,
+            "RaceDifficultyThresholdEasy": -0.025,
+            "RaceDifficultyThresholdMedium": 0.05,
+            "RaceDifficultyThresholdHard": 0.125,
+            "DailyRaceAIAddedQMileTime": 0.3,
+            "ToggleDuration": 0.2,
+            "ToggleDelay": 0,
+            "SoundMinRadius": 0,
+            "SoundMaxRadius": 200,
+            "MinAiEngineSoundModulation": 0.1,
+            "MaxAiEngineSoundModulation": 0.4,
+            "CashBonusCarClassMultiplier": [
+                1,
+                1.2,
+                1.4,
+                1.6,
+                1.8
+            ],
+            "SoftCurrencyCarClassMultiplier": [
+                1,
+                1.1,
+                1.2,
+                1.3,
+                1.4
+            ],
+            "HardCurrencyCarClassMultiplier": [
+                1,
+                1.05,
+                1.1,
+                1.15,
+                1.2
+            ],
+            "SkillBonusCarClassMultiplier": [
+                1,
+                1.25,
+                1.5,
+                1.75,
+                2
+            ],
+            "START_SHIFT_TIME_CONSTANTS": [
+                0.9,
+                0.7,
+                0.4
+            ],
+            "TOTAL_SKIDDING_TIME": [
+                2.5,
+                1,
+                0.3
+            ],
+            "Left_45_Player_Radius": -45,
+            "Left_45_AI_Radius": -45,
+            "Left_66_Player_Radius": -66,
+            "Left_66_AI_Radius": -66,
+            "Right_45_Player_Radius": 45,
+            "Right_45_AI_Radius": 45,
+            "Right_66_Player_Radius": 45,
+            "Right_66_AI_Radius": 45,
+            "Right_180_Player_Radius": 45,
+            "Right_180_AI_Radius": 45,
+            "DriftRequiredMinSpeed": 15,
+            "DriftTimeSinceCompletionStage1": 115,
+            "DriftTimeSinceCompletionStage2": 120,
+            "DriftEBrakeMultiplierSpeedFactor": 0.05,
+            "BaseBoostZoneWidth": 80,
+            "DriftMissCornerPercentToBrake": 10,
+            "DriftMissCornerPercentToBrake180": 5,
+            "DRIFT_90_MULTIPLIER": [
+                0.9,
+                0.75,
+                0.6,
+                0.5,
+                0.9,
+                1.5
+            ],
+            "DRIFT_180_MULTIPLIER": [
+                4,
+                3,
+                2.5,
+                2,
+                1,
+                1.25
+            ],
+            "PerfectDriftBoostTorque": [
+                60,
+                60,
+                60,
+                60,
+                60
+            ],
+            "DifficultyNoviceShiftRPM": 1800,
+            "DifficultyEasyShiftRPM": 1500,
+            "DifficultyMediumShiftRPM": 1000,
+            "DifficultyHardShiftRPM": 1500,
+            "DifficultyNoviceDrift": 75,
+            "DifficultyEasyDrift": 85,
+            "DifficultyMediumDrift": 92,
+            "DifficultyHardDrift": 100,
+            "FlipCarSuccessSpeedMultiplier": 0.75
+        },
+        "int": {
+            "DefaultSoftCurrency": 1000,
+            "DeliveryCostLevel1": 0,
+            "DeliveryTimeLevel1": 0,
+            "EnergyRegenTime": 300,
+            "EnergyMax": 7,
+            "EnergyUpgrade": 3,
+            "FuelCost": 2,
+            "FuelUpgradeCost": 20,
+            "BeginnerSaleDuration": 259200,
+            "BeginnerSaleNotificationTime": 86400,
+            "BossPinkSlipRaceTimeLimit": 300
+        },
+        "dailyrewardinfo": [
+            {
+                "r": [
+                    100,
+                    200,
+                    300
+                ]
+            }
+        ],
+        "mapicontoggle": [
+            {
+                "m": "drag_ladder_e_01",
+                "a": true,
+                "u": false
+            },
+            {
+                "m": "drag_ladder_e_02",
+                "a": false,
+                "u": true
+            }
+        ],
+        "levelinfo": [
+            {
+                "m": "drag_ladder_e_01",
+                "r": 1,
+                "x": 1
+            },
+            {
+                "m": "drag_ladder_e_02",
+                "r": 1,
+                "x": 1
+            }
+        ]
+    }
+]

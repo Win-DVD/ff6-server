@@ -1,0 +1,18 @@
+{
+    "result": {
+        "count": 1,
+        "url": "http://192.168.1.11/motd",
+        "templates": [
+            {
+                "name": "ff6revival",
+                "title": "Welcome to FF6 Revival!",
+                "calltoaction": "Click here to start",
+                "actionbutton": "Start",
+                "cdn": "http://192.168.1.11",
+                "actionimage": "start.png",
+                "actioncolour": "Color.green",
+                "params": {}
+            }
+        ]
+    }
+}

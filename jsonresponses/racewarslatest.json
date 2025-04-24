@@ -1,0 +1,34 @@
+{
+    "result": {
+        "id": "133769",
+        "name": "Race Wars Event",
+        "ended": false,
+        "starts": 1624291200,
+        "ends": 1626883200,
+        "streak_milestones": [
+          {
+            "streak": 5,
+            "items": [
+              {
+                "n": "supernos",
+                "q": 1,
+                "t": 1
+              }
+            ]
+          }
+        ],
+        "point_milestones": [
+          {
+            "point": 1000,
+            "items": [
+              {
+                "n": "supernos",
+                "q": 1,
+                "t": 1
+              }
+            ]
+          }
+        ],
+        "eliteCarMulti": 1.5
+      }      
+}
