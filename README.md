@@ -33,7 +33,7 @@ Windows 8.1/WinRT Retail Build 4.1.2 - Poor compatibility.
 
 There are many more versions I haven't really tested much. But pretty much can assume the newer the version, the worse it will function with this.
 
-Feel free to leave a post in the issue section if you have any questions or issues. And thanks for reading :)
+Feel free to leave a post in the issue section or message me in Discord if you have any questions or issues. And thanks for reading :)
 
 Galaxy Note Edge on Android 4.4.4 and running game version 1.0.4:
 ![Screenshot_2025-04-24-18-07-41](https://github.com/user-attachments/assets/0ba249e1-d40e-4205-a34c-647c996af012)
