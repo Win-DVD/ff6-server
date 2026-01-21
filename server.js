@@ -522,44 +522,97 @@ function handleCarsSave(req, res, body) {
 
 function handleWalletBalance(req, res, body, pathname) {
   const state = StateManager.loadSave();
+
+  if (!state.result) state.result = {};
+  if (!state.result.profile) state.result.profile = { coins: 0, gold: 0, xp: 0, energy: 10 };
+
+  let gold = state.result.profile.gold;
+  if (Array.isArray(gold)) gold = gold[0];
+  gold = parseInt(String(gold), 10);
+  if (!isFinite(gold) || gold < 0) gold = 0;
+  state.result.profile.gold = gold;
+
+  return sendJson(res, {
+    ts: Math.floor(Date.now() / 1000),
+    result: { balance: gold }
+  });
+}
+
+function handleWalletDebit(req, res, body) {
+  const state = StateManager.loadSave();
   const parsedUrl = url.parse(req.url, true);
-
-  const safePath = (pathname !== undefined && pathname !== null)
-    ? String(pathname)
-    : (parsedUrl && parsedUrl.pathname ? String(parsedUrl.pathname) : '');
-
   const params = parseBodyObject(body, parsedUrl);
 
   if (!state.result) state.result = {};
   if (!state.result.profile) state.result.profile = { coins: 0, gold: 0, xp: 0, energy: 10 };
 
-  if (safePath === '/wallet/balance') {
-    const gold = (state.result.profile && state.result.profile.gold) ? state.result.profile.gold : 0;
+  let rawVal = (params.value !== undefined && params.value !== null) ? params.value
+            : ((params.amount !== undefined && params.amount !== null) ? params.amount
+            : ((params.v !== undefined && params.v !== null) ? params.v : 0));
+  if (Array.isArray(rawVal)) rawVal = rawVal[0];
 
+  let val = parseInt(String(rawVal), 10);
+  if (!isFinite(val) || val < 0) val = 0;
+
+  let current = state.result.profile.gold;
+  if (Array.isArray(current)) current = current[0];
+  current = parseInt(String(current), 10);
+  if (!isFinite(current) || current < 0) current = 0;
+
+  if (val > 0 && current < val) {
     return sendJson(res, {
       ts: Math.floor(Date.now() / 1000),
-      result: {
-        balance: gold
-      }
+      err: 'nsf',
+      result: { retry: false, fatal: false, invalid_session: false }
     });
   }
 
-  const val = parseInt(params.value || 0, 10) || 0;
-
-  if (safePath.indexOf('/wallet/debit') === 0) {
-    state.result.profile.gold = Math.max(0, (state.result.profile.gold || 0) - val);
-  } else if (safePath.indexOf('/wallet/credit') === 0) {
-    state.result.profile.gold = (state.result.profile.gold || 0) + val;
+  if (val > 0) {
+    state.result.profile.gold = current - val;
+    if (state.result.profile.gold < 0) state.result.profile.gold = 0;
+    StateManager.writeSave(state);
+  } else {
+    state.result.profile.gold = current;
   }
-
-  StateManager.writeSave(state);
 
   return sendJson(res, {
     ts: Math.floor(Date.now() / 1000),
-    result: {
-      success: true,
-      balance: state.result.profile.gold || 0
-    }
+    result: { balance: state.result.profile.gold || 0 }
+  });
+}
+
+function handleWalletCredit(req, res, body) {
+  const state = StateManager.loadSave();
+  const parsedUrl = url.parse(req.url, true);
+  const params = parseBodyObject(body, parsedUrl);
+
+  if (!state.result) state.result = {};
+  if (!state.result.profile) state.result.profile = { coins: 0, gold: 0, xp: 0, energy: 10 };
+
+  let rawVal = (params.value !== undefined && params.value !== null) ? params.value
+            : ((params.amount !== undefined && params.amount !== null) ? params.amount
+            : ((params.v !== undefined && params.v !== null) ? params.v : 0));
+  if (Array.isArray(rawVal)) rawVal = rawVal[0];
+
+  let val = parseInt(String(rawVal), 10);
+  if (!isFinite(val) || val < 0) val = 0;
+
+  let current = state.result.profile.gold;
+  if (Array.isArray(current)) current = current[0];
+  current = parseInt(String(current), 10);
+  if (!isFinite(current) || current < 0) current = 0;
+
+  if (val > 0) {
+    state.result.profile.gold = current + val;
+    if (state.result.profile.gold < 0) state.result.profile.gold = 0;
+    StateManager.writeSave(state);
+  } else {
+    state.result.profile.gold = current;
+  }
+
+  return sendJson(res, {
+    ts: Math.floor(Date.now() / 1000),
+    result: { balance: state.result.profile.gold || 0 }
   });
 }
 
@@ -666,6 +719,8 @@ const routes = [
   { path: '/kabam/guest',   handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
   { path: '/kabam/login',   handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
   { path: '/tuning',        handler: (req, res) => handleJsonResponse('jsonresponses/tuning.json',       res) },
+  { path: '/wallet/debit',  handler: (req, res, body) => handleWalletDebit(req, res, body) },
+  { path: '/wallet/credit', handler: (req, res, body) => handleWalletCredit(req, res, body) },
   { path: '/wallet/balance',handler: (req, res, body, parsedUrl, pathname) => handleWalletBalance(req, res, body, pathname) },
   { path: '/wallet',        handler: (req, res, body, parsedUrl, pathname) => handleWalletBalance(req, res, body, pathname) },
   { path: '/gacha/getTokens', handler: (req, res) => handleJsonResponse('jsonresponses/gettokens.json',   res) },
@@ -790,4 +845,3 @@ logInfo('Server is running...');
 process.on('exit', () => {
   if (logStream) logStream.end();
 });
-
