@@ -50,7 +50,7 @@ function pretty(obj) {
   return util.inspect(obj, { depth: null, colors: false });
 }
 
-logInfo('FF6 Custom Server v0.0.3 EXPERIMENTAL');
+logInfo('FF6 Custom Server v0.0.3');
 logInfo('NOTE: This server is very unfinished, development is still underway.');
 logInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
 logInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
@@ -790,3 +790,4 @@ logInfo('Server is running...');
 process.on('exit', () => {
   if (logStream) logStream.end();
 });
+
