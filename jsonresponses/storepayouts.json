@@ -1,29 +1,93 @@
 {
-    "result": {
-        "payoutSets": [
+  "result": {
+    "data": {
+      "payoutSets": [
+        {
+          "payouts": [
             {
-                "payouts": [
-                    {
-                        "productId": "1",
-                        "cost": 2.99,
-                        "numOfIGC": 100,
-                        "coststring": "$1.99",
-                        "thirdPartyId": "com.kabam.fast.299",
-                        "show": true,
-                        "payoutid": 123
-                    },
-                    {
-                        "productId": "2",
-                        "cost": 4.99,
-                        "numOfIGC": 500,
-                        "coststring": "$4.99",
-                        "thirdPartyId": "com.example.product2",
-                        "show": true,
-                        "payoutid": 456
-                    }
-                ]
+              "productId": "1",
+              "cost": 2.99,
+              "numOfIGC": 30,
+              "coststring": "$2.99",
+              "thirdPartyId": "com.kabam.fast.299",
+              "show": true,
+              "payoutid": 1,
+
+              "visible": 1,
+              "art": 1,
+              "longName": "STACK_OF_GOLD"
+            },
+            {
+              "productId": "2",
+              "cost": 4.99,
+              "numOfIGC": 55,
+              "coststring": "$4.99",
+              "thirdPartyId": "com.kabam.fast.499",
+              "show": true,
+              "payoutid": 2,
+
+              "visible": 1,
+              "art": 2,
+              "longName": "DUFFEL_BAG_OF_GOLD"
+            },
+            {
+              "productId": "3",
+              "cost": 9.99,
+              "numOfIGC": 115,
+              "coststring": "$9.99",
+              "thirdPartyId": "com.kabam.fast.999",
+              "show": true,
+              "payoutid": 3,
+
+              "visible": 1,
+              "art": 3,
+              "longName": "CRATES_OF_GOLD"
+            },
+            {
+              "productId": "4",
+              "cost": 19.99,
+              "numOfIGC": 250,
+              "coststring": "$19.99",
+              "thirdPartyId": "com.kabam.fast.1999",
+              "show": true,
+              "payoutid": 4,
+
+              "visible": 1,
+              "art": 4,
+              "longName": "CAR_TRUNK_OF_GOLD",
+              "popular": 1
+            },
+            {
+              "productId": "5",
+              "cost": 59.99,
+              "numOfIGC": 900,
+              "coststring": "$59.99",
+              "thirdPartyId": "com.kabam.fast.5999",
+              "show": true,
+              "payoutid": 5,
+
+              "visible": 1,
+              "art": 5,
+              "longName": "VAULT_OF_GOLD"
+            },
+            {
+              "productId": "6",
+              "cost": 99.99,
+              "numOfIGC": 1600,
+              "coststring": "$99.99",
+              "thirdPartyId": "com.kabam.fast.9999",
+              "show": true,
+              "payoutid": 6,
+
+              "visible": 1,
+              "art": 6,
+              "longName": "SEMI_TRUCK_OF_GOLD",
+              "value": 1
             }
-        ]
+          ]
+        }
+      ]
     },
-    "externalTrkid": "periodic_subscriptions@965d75c8b0d1c8bdcd66bb4a4c37de2c,3e518b9500bc0b3835ca234b612e146e:#11aaf2cd1ed71f536eb8b62cd7235c99:googleapp"
+    "externalTrkid": "offline@dummy:googleapp"
+  }
 }
