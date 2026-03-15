@@ -1,12 +1,44 @@
 const path = require('path');
-const { fs, safeJSONParse, sendJson } = require('../utils/common');
+const url = require('url');
+const { fs, safeJSONParse, sendJson, parseBodyObject } = require('../utils/common');
 
 module.exports = function(deps) {
   const StateManager = deps.StateManager;
   const RESPONSES_DIR = deps.RESPONSES_DIR;
 
+  function resolveNaid(req, body, parsedUrlInput) {
+    const parsedUrl = parsedUrlInput || url.parse(req.url, true);
+    const data = parseBodyObject(body, parsedUrl);
+    let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
+
+    if (!naid && data.uid !== undefined && data.uid !== null) {
+      const byUid = StateManager.findNaidByUid(String(data.uid));
+      if (byUid) naid = String(byUid);
+    }
+
+    if (!naid) {
+      const stoken = data.stoken || data.session || data.token || data.st || data.s;
+      if (stoken) {
+        const byToken = StateManager.findNaidByStoken(String(stoken));
+        if (byToken) naid = String(byToken);
+      }
+    }
+
+    if (!naid && parsedUrl && parsedUrl.pathname && parsedUrl.pathname.indexOf('/store/') === 0) {
+      const seg = parsedUrl.pathname.split('/')[2];
+      if (seg) {
+        const byUid = StateManager.findNaidByUid(String(seg));
+        if (byUid) naid = String(byUid);
+      }
+    }
+
+    if (!naid) naid = 'guest';
+    return naid;
+  }
+
   return function handleStoreVerifyPayout(req, res, body, parsedUrl, pathname) {
-    const state = StateManager.loadSave();
+    const naid = resolveNaid(req, body, parsedUrl);
+    const state = StateManager.loadSave(naid);
 
     if (!state.result) state.result = {};
     if (!state.result.profile) state.result.profile = { coins: 0, gold: 0, xp: 0, energy: 10 };
@@ -97,7 +129,7 @@ module.exports = function(deps) {
       };
     }
 
-    StateManager.writeSave(state);
+    StateManager.writeSave(state, naid);
 
     return sendJson(res, {
       ts: Math.floor(Date.now() / 1000),
