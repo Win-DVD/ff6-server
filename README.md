@@ -8,7 +8,8 @@ This server is now much more complete as of 0.0.3, It can now save and load data
 1.x.x and 2.x.x versions of the game are quite stable now. It's still quite experimental, but it's coming along quite well.<br>
 Later versions of the game have some unimplemented server functionality that makes them not work very well.
 
-This is built with Node.JS 11 in mind since TLS 1.0 support is ideal for older devices that don't support TLS 1.2 communcation. Do keep in mind the security risks that entails though.
+This is built with Node.JS 11 in mind since TLS 1.0 support is ideal for older devices that don't support TLS 1.2 communcation. Do keep in mind the security risks that entails though.<br>
+I do not reccomend exposing this server to the public web yet, It's not complete and there is little to nothing implemented for security.
 
 Data saving and loading is added as of 0.0.3, It's still early, but it seems to be reliable.<br>
 It's single player only still though. Data loss can occur, please make backups of your save folder. And if an issue occurs, please report it.
