@@ -90,7 +90,7 @@ const StateManager = createSaveHandler.createStateManager({
   logError
 });
 
-const handleAuth = createAuthHandler({ StateManager });
+const handleAuth = createAuthHandler({ StateManager, SAVE_DIR });
 const handleDataStore = createDataStoreHandler({ StateManager });
 const handleCarsSave = createSaveHandler({ StateManager });
 const walletHandlers = createWalletHandler({ StateManager });
@@ -181,9 +181,10 @@ const routes = [
   { path: '/content',       handler: (req, res) => handleJsonResponse('jsonresponses/info.json',          res) },
   { path: '/auth/init',     handler: (req, res) => handleJsonResponse('jsonresponses/authinit.json',      res) },
   { path: '/kabam/register',handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
-  { path: '/kabam/upgrade', handler: (req, res) => handleJsonResponse('jsonresponses/noacc.json',         res) },
+  { path: '/kabam/upgrade', handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
   { path: '/kabam/guest',   handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
   { path: '/kabam/login',   handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
+  { path: '/kabam/name',    handler: (req, res, body, parsedUrl) => handleAuth.handleKabamName(req, res, body, parsedUrl) },
   { path: '/tuning',        handler: (req, res) => handleJsonResponse('jsonresponses/tuning.json',        res) },
   { path: '/wallet/debit',  handler: (req, res, body) => walletHandlers.handleWalletDebit(req, res, body) },
   { path: '/wallet/credit', handler: (req, res, body) => walletHandlers.handleWalletCredit(req, res, body) },
@@ -236,7 +237,7 @@ function handleRequest(req, res) {
     }
 
     if (pathname.indexOf('/ds/') === 0) {
-      if (req.method === 'POST' || req.method === 'GET') return handleDataStore(req, res, body);
+      if (req.method === 'POST' || req.method === 'GET') return handleDataStore(req, res, body, parsedUrl);
     }
 
     const route = routes.find(r => pathname.startsWith(r.path));

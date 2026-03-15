@@ -12,6 +12,59 @@ const {
   isCarRecordLike
 } = require('../utils/common');
 
+function sanitizeId(id) {
+  const s = String(id || 'guest');
+  return s.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 64) || 'guest';
+}
+
+function randomIntCompat(min, max) {
+  const lo = parseInt(min, 10) || 0;
+  const hi = parseInt(max, 10) || 0;
+  if (hi <= lo) return lo;
+  const span = hi - lo;
+  const n = crypto.randomBytes(6).readUIntBE(0, 6);
+  return lo + (n % span);
+}
+
+function randomDigits(length) {
+  const len = parseInt(length, 10) || 1;
+  let out = '';
+  while (out.length < len) {
+    const b = crypto.randomBytes(16);
+    for (let i = 0; i < b.length && out.length < len; i++) out += String(b[i] % 10);
+  }
+  return out;
+}
+
+function createUid() {
+  return randomDigits(17);
+}
+
+function uidUsedInProfiles(profiles, uid) {
+  const keys = Object.keys(profiles || {});
+  for (let i = 0; i < keys.length; i++) {
+    const pr = profiles[keys[i]];
+    if (pr && pr.uid !== undefined && String(pr.uid) === String(uid)) return true;
+  }
+  return false;
+}
+
+function uidUsedInUsers(saveDir, uid) {
+  try {
+    const usersPath = path.join(saveDir, 'users.json');
+    if (!fs.existsSync(usersPath)) return false;
+    const raw = fs.readFileSync(usersPath, 'utf8');
+    const users = raw && raw.trim().length ? JSON.parse(raw) : {};
+    if (!users || typeof users !== 'object') return false;
+    const keys = Object.keys(users);
+    for (let i = 0; i < keys.length; i++) {
+      const rec = users[keys[i]];
+      if (rec && rec.uid !== undefined && String(rec.uid) === String(uid)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
 function createStateManager(config) {
   const SAVE_DIR = config.SAVE_DIR;
   const SAVE_FILE = config.SAVE_FILE;
@@ -19,8 +72,43 @@ function createStateManager(config) {
   const logError = config.logError;
 
   const StateManager = {
-    loadSave: function() {
-      const p = path.join(SAVE_DIR, SAVE_FILE);
+    _profilePath: function() {
+      return path.join(SAVE_DIR, PROFILE_FILE);
+    },
+
+    _savePath: function(naid) {
+      const safeNaid = sanitizeId(naid || 'guest');
+      return path.join(SAVE_DIR, `save_${safeNaid}.json`);
+    },
+
+    _legacySavePath: function() {
+      return path.join(SAVE_DIR, SAVE_FILE);
+    },
+
+    _loadProfiles: function() {
+      const p = this._profilePath();
+      let profiles = {};
+      try {
+        if (fs.existsSync(p)) {
+          const raw = fs.readFileSync(p, 'utf8');
+          if (raw && raw.trim().length) profiles = JSON.parse(raw);
+        }
+      } catch (e) {
+        profiles = {};
+      }
+      if (!profiles || typeof profiles !== 'object' || Array.isArray(profiles)) profiles = {};
+      return profiles;
+    },
+
+    _writeProfiles: function(profiles) {
+      try {
+        fs.writeFileSync(this._profilePath(), JSON.stringify(profiles || {}, null, 4));
+      } catch (e) {}
+    },
+
+    loadSave: function(naid) {
+      const scopedPath = this._savePath(naid || 'guest');
+      const p = scopedPath;
       let data = null;
 
       if (fs.existsSync(p)) {
@@ -48,7 +136,7 @@ function createStateManager(config) {
       }
 
       if (!data.result.cars) data.result.cars = {};
-      if (!data.result.profile) data.result.profile = { coins: 23450, gold: 25, xp: 0, energy: 10 };
+      if (!data.result.profile) data.result.profile = { coins: 23450, gold: 25, xp: 0, energy: 10, uid: '', name: '', email: '', loggedIn: false, guest: true };
       if (!data.result.inventory) data.result.inventory = {};
       if (!data.result.stats) data.result.stats = {};
       if (!data.result.unlocks) data.result.unlocks = { values: ['fuel'] };
@@ -62,8 +150,8 @@ function createStateManager(config) {
       return data;
     },
 
-    writeSave: function(data) {
-      const p = path.join(SAVE_DIR, SAVE_FILE);
+    writeSave: function(data, naid) {
+      const p = this._savePath(naid || 'guest');
       try {
         if (!data || !data.result) return;
 
@@ -82,30 +170,95 @@ function createStateManager(config) {
       }
     },
 
-    getProfile: function(naidInput) {
-      const p = path.join(SAVE_DIR, PROFILE_FILE);
-      let profiles = {};
-      try {
-        if (fs.existsSync(p)) {
-          const raw = fs.readFileSync(p, 'utf8');
-          if (raw && raw.trim().length) profiles = JSON.parse(raw);
-        }
-      } catch (e) {
-        profiles = {};
+    findNaidByStoken: function(stoken) {
+      if (!stoken) return null;
+      const profiles = this._loadProfiles();
+      const keys = Object.keys(profiles);
+      for (let i = 0; i < keys.length; i++) {
+        const pr = profiles[keys[i]];
+        if (pr && pr.stoken === stoken) return keys[i];
       }
+      return null;
+    },
 
-      const naid = naidInput || 'guest';
+    findNaidByUid: function(uid) {
+      if (!uid) return null;
+      const target = String(uid);
+      const profiles = this._loadProfiles();
+      const keys = Object.keys(profiles);
+      for (let i = 0; i < keys.length; i++) {
+        const pr = profiles[keys[i]];
+        if (pr && pr.uid !== undefined && String(pr.uid) === target) return keys[i];
+      }
+      return null;
+    },
+
+    isUidInUse: function(uid) {
+      if (!uid) return false;
+      const profiles = this._loadProfiles();
+      if (uidUsedInProfiles(profiles, uid)) return true;
+      return uidUsedInUsers(SAVE_DIR, uid);
+    },
+
+    generateUniqueUid: function() {
+      let uid = '';
+      for (let i = 0; i < 50; i++) {
+        uid = createUid();
+        if (!this.isUidInUse(uid)) return uid;
+      }
+      return randomDigits(17);
+    },
+
+    getProfile: function(naidInput) {
+      const naid = String(naidInput || 'guest');
+      const profiles = this._loadProfiles();
+
       if (!profiles[naid]) {
         profiles[naid] = {
-          uid: '1001',
+          uid: this.generateUniqueUid(),
           naid: naid,
-          name: 'Player',
+          name: '',
           stoken: crypto.randomBytes(16).toString('hex') + '|0',
-          created: Date.now()
+          created: Date.now(),
+          email: '',
+          loggedIn: false,
+          guest: true
         };
-        try { fs.writeFileSync(p, JSON.stringify(profiles, null, 4)); } catch (e2) {}
+        this._writeProfiles(profiles);
       }
+
       return profiles[naid];
+    },
+
+    ensureProfile: function(naidInput) {
+      return this.getProfile(String(naidInput || 'guest'));
+    },
+
+    saveProfile: function(profile) {
+      if (!profile || !profile.naid) return false;
+      const profiles = this._loadProfiles();
+      profiles[String(profile.naid)] = profile;
+      this._writeProfiles(profiles);
+      return true;
+    },
+
+    migrateSave: function(fromNaid, toNaid) {
+      const from = String(fromNaid || '');
+      const to = String(toNaid || '');
+      if (!from || !to || from === to) return;
+
+      const fromPath = this._savePath(from);
+      const toPath = this._savePath(to);
+
+      if (!fs.existsSync(fromPath) || fs.existsSync(toPath)) return;
+
+      try {
+        const content = fs.readFileSync(fromPath, 'utf8');
+        if (!content || !content.trim()) return;
+        fs.writeFileSync(toPath, content);
+        try { fs.copyFileSync(fromPath, fromPath + '.migrated.bak'); } catch (e) {}
+        try { fs.unlinkSync(fromPath); } catch (e) {}
+      } catch (e) {}
     },
 
     merge: function(target, source) {
@@ -209,12 +362,31 @@ function createSaveHandler(deps) {
   const StateManager = deps.StateManager;
 
   return function handleCarsSave(req, res, body) {
-    const state = StateManager.loadSave();
     const parsedUrl = url.parse(req.url, true);
     const data = parseBodyObject(body, parsedUrl);
 
     const json = safeJSONParse(body, {});
     const carPayload = (json && json.car) ? json.car : (data && data.car ? data.car : null);
+
+    let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
+    if (!naid) {
+      const stoken = data.stoken || data.session || data.token || data.st || data.s;
+      if (stoken) {
+        const foundByToken = StateManager.findNaidByStoken(String(stoken));
+        if (foundByToken) naid = String(foundByToken);
+      }
+    }
+    if (!naid && carPayload && carPayload.uid !== undefined && carPayload.uid !== null) {
+      const foundByUid = StateManager.findNaidByUid(String(carPayload.uid));
+      if (foundByUid) naid = String(foundByUid);
+    }
+    if (!naid && data.uid !== undefined && data.uid !== null) {
+      const foundByUid = StateManager.findNaidByUid(String(data.uid));
+      if (foundByUid) naid = String(foundByUid);
+    }
+    if (!naid) naid = 'guest';
+
+    const state = StateManager.loadSave(naid);
 
     if (!carPayload || typeof carPayload !== 'object') {
       return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { success: false } });
@@ -229,7 +401,7 @@ function createSaveHandler(deps) {
 
     const container = ensureCarsNested(state, uid);
     container[normalized._id] = normalized;
-    StateManager.writeSave(state);
+    StateManager.writeSave(state, naid);
 
     return sendJson(res, {
       ts: Math.floor(Date.now() / 1000),
