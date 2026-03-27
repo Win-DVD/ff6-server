@@ -171,6 +171,35 @@ function getSparxErrorResponse(errCode, flags) {
   };
 }
 
+function parseClientVersion(data) {
+  const raw = data && data.version !== undefined && data.version !== null ? String(data.version).trim() : '';
+  return raw;
+}
+
+function parseClientPlatform(data) {
+  const raw = data && data.platform !== undefined && data.platform !== null ? String(data.platform).trim() : '';
+  return raw;
+}
+
+function parseClientBuild(data) {
+  const version = parseClientVersion(data);
+  if (!version) return 0;
+  const legacy = version.match(/^1\.0\.(\d+)$/);
+  if (legacy) return parseInt(legacy[1], 10) || 0;
+  const modern = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (modern) {
+    const major = parseInt(modern[1], 10) || 0;
+    const minor = parseInt(modern[2], 10) || 0;
+    const patch = parseInt(modern[3], 10) || 0;
+    if (major > 1) return 13598 + (major * 10000) + (minor * 100) + patch;
+  }
+  return 0;
+}
+
+function createSessionToken() {
+  return crypto.randomBytes(16).toString('hex') + '|0';
+}
+
 module.exports = function(deps) {
   const StateManager = deps.StateManager;
   const SAVE_DIR = deps.SAVE_DIR;
@@ -358,6 +387,20 @@ module.exports = function(deps) {
     if (check.ok) profile.name = check.value;
   }
 
+  function applyClientInfo(profile, data) {
+    const clientVersion = parseClientVersion(data);
+    const clientPlatform = parseClientPlatform(data);
+    const clientBuild = parseClientBuild(data);
+    if (clientVersion) profile.clientVersion = clientVersion;
+    if (clientPlatform) profile.clientPlatform = clientPlatform;
+    if (clientBuild > 0) profile.clientBuild = clientBuild;
+    if (clientVersion || clientPlatform) profile.clientInfoUpdatedAt = Date.now();
+  }
+
+  function resolveIncomingStoken(data) {
+    return String(data.stoken || '').trim();
+  }
+
   function isNameTaken(naid, name) {
     const profiles = typeof StateManager._loadProfiles === 'function' ? StateManager._loadProfiles() : {};
     const keys = Object.keys(profiles || {});
@@ -405,6 +448,10 @@ module.exports = function(deps) {
       ts: nowTs(),
       result: buildAuthPayload(profile, state)
     });
+  }
+
+  function handlePing(req, res, body, parsedUrl) {
+    return sendJson(res, { ts: nowTs() });
   }
 
   function handleAuth(req, res, body, parsedUrl) {
@@ -553,6 +600,13 @@ module.exports = function(deps) {
     ensureUserIdentityFields(profile);
 
     applyIncomingName(profile, data);
+    applyClientInfo(profile, data);
+    const incomingStoken = resolveIncomingStoken(data);
+    if (incomingStoken) {
+      profile.stoken = incomingStoken;
+    } else if (!profile.stoken) {
+      profile.stoken = createSessionToken();
+    }
 
     if (creds.email && loggedIn) {
       profile.email = creds.email;
@@ -571,5 +625,6 @@ module.exports = function(deps) {
   }
 
   handleAuth.handleKabamName = handleKabamName;
+  handleAuth.handlePing = handlePing;
   return handleAuth;
 };

@@ -19,6 +19,7 @@ const createWalletHandler = require('./handlers/walletHandler');
 const createStoreHandler = require('./handlers/storeHandler');
 const createInventoryHandler = require('./handlers/inventoryHandler');
 const createWebsocketHandler = require('./handlers/websocketHandler');
+const createGachaHandler = require('./handlers/gachaHandler');
 
 // toggle logging here
 const consoleLoggingEnabled = true;
@@ -50,7 +51,7 @@ function logError(message) {
   writeLog('ERROR', message, true);
 }
 
-logInfo('FF6 Custom Server v0.0.3b');
+logInfo('FF6 Custom Server v0.1.0 DEV');
 logInfo('NOTE: This server is very unfinished, development is still underway.');
 logInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
 logInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
@@ -96,7 +97,15 @@ const handleCarsSave = createSaveHandler({ StateManager });
 const walletHandlers = createWalletHandler({ StateManager });
 const handleStoreVerifyPayout = createStoreHandler({ StateManager, RESPONSES_DIR });
 const handleInventory = createInventoryHandler({ StateManager });
-const handleConnection = createWebsocketHandler({ logInfo, logError });
+const handleConnection = createWebsocketHandler({ logInfo, logError, StateManager });
+const handleGacha = createGachaHandler({
+  StateManager,
+  RESPONSES_DIR,
+  handleCarsSave,
+  getWsServers: () => ({ wss: wssServer, ws: wsServer }),
+  logInfo,
+  logError
+});
 
 // new fancy logging stuff, looks prettier
 function logRequest(req, body) {
@@ -171,6 +180,7 @@ function handleBugs(req, res, body) {
 // routes
 const routes = [
   { path: '/inventory/add', handler: (req, res, body, parsedUrl, pathname) => handleInventory(req, res, body, pathname) },
+  { path: '/inventory/use', handler: (req, res, body, parsedUrl, pathname) => handleInventory(req, res, body, pathname) },
   { path: '/inventory',     handler: (req, res, body, parsedUrl, pathname) => handleInventory(req, res, body, pathname) },
   { path: '/motd/status',   handler: (req, res) => handleJsonResponse('jsonresponses/motdstatus.json',    res) },
   { path: '/carinfo/check', handler: (req, res) => handleJsonResponse('jsonresponses/carinfocheck.json',  res) },
@@ -190,10 +200,13 @@ const routes = [
   { path: '/wallet/credit', handler: (req, res, body) => walletHandlers.handleWalletCredit(req, res, body) },
   { path: '/wallet/balance',handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleWalletBalance(req, res, body, pathname) },
   { path: '/wallet',        handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleWalletBalance(req, res, body, pathname) },
-  { path: '/gacha/getTokens', handler: (req, res) => handleJsonResponse('jsonresponses/gettokens.json',   res) },
-  { path: '/gacha/getRewardCars', handler: (req, res) => handleJsonResponse('jsonresponses/getrewardcars.json', res) },
-  { path: '/gacha/getTables', handler: (req, res) => handleJsonResponse('jsonresponses/gachatables.json', res) },
-  { path: '/gacha/getAttractImages', handler: (req, res) => handleJsonResponse('jsonresponses/gachaattract.json', res) },
+  { path: '/gacha/getTokens', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
+  { path: '/gacha/getRewardCars', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
+  { path: '/gacha/getTables', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
+  { path: '/gacha/getAttractImages', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
+  { path: '/gacha/pick', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
+  { path: '/gacha/buyCarWithTokens', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
+  { path: '/util/ping', handler: (req, res, body, parsedUrl) => handleAuth.handlePing(req, res, body, parsedUrl) },
   { path: '/store/payouts', handler: (req, res) => handleJsonResponse('jsonresponses/storepayouts.json',  res) },
   { path: '/store/verify-payout', handler: (req, res, body, parsedUrl, pathname) => handleStoreVerifyPayout(req, res, body, parsedUrl, pathname) },
   { path: '/tournaments/latest', handler: (req, res) => handleJsonResponse('jsonresponses/tournamentslatest.json', res) },
@@ -201,7 +214,7 @@ const routes = [
   { path: '/racewars/myInfo',     handler: (req, res) => handleJsonResponse('jsonresponses/racewarsmyinfo.json',  res) },
   { path: '/prizes/refresh',      handler: (req, res) => handleJsonResponse('jsonresponses/prizesrefresh.json',   res) },
   { path: '/web/webViewTabs',     handler: (req, res) => handleJsonResponse('jsonresponses/webviewtabs.json',     res) },
-  { path: '/push/token',          handler: (req, res) => handleJsonResponse('jsonresponses/pushtoken.json',       res) }
+  { path: '/push/token',          handler: (req, res) => handleConnection.handlePushToken(req, res) }
 ];
 
 // handle HTTP/HTTPS requests
@@ -270,7 +283,7 @@ httpsServer.on('upgrade', (req, sock, head) => {
   const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
   if (pathname === '/push/token') {
     logInfo(`WSS Upgrade: ${req.method} ${req.url}`);
-    wssServer.handleUpgrade(req, sock, head, ws => handleConnection(ws, true));
+    wssServer.handleUpgrade(req, sock, head, ws => handleConnection(ws, true, req));
   } else {
     sock.destroy();
   }
@@ -281,7 +294,7 @@ httpServer.on('upgrade', (req, sock, head) => {
   const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
   if (pathname === '/push/token') {
     logInfo(`WS Upgrade: ${req.method} ${req.url}`);
-    wsServer.handleUpgrade(req, sock, head, ws => handleConnection(ws, false));
+    wsServer.handleUpgrade(req, sock, head, ws => handleConnection(ws, false, req));
   } else {
     sock.destroy();
   }
