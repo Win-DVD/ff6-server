@@ -51,7 +51,7 @@ function logError(message) {
   writeLog('ERROR', message, true);
 }
 
-logInfo('FF6 Custom Server v0.1.0 DEV');
+logInfo('FF6 Custom Server v0.1.0');
 logInfo('NOTE: This server is very unfinished, development is still underway.');
 logInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
 logInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
