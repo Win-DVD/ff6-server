@@ -45,6 +45,26 @@ module.exports = function(deps) {
       return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { success: true } });
     }
 
+    if (pathname === '/inventory/use') {
+      const json = safeJSONParse(body, {});
+      if (json && json.items && typeof json.items === 'object') {
+        const keys = Object.keys(json.items);
+        for (let i = 0; i < keys.length; i++) {
+          const k = keys[i];
+          const v = parseInt(json.items[k] || 0, 10) || 0;
+          if (v <= 0) continue;
+          const cur = parseInt(state.result.inventory[k] || 0, 10) || 0;
+          let useCount = v;
+          if ((k === 'pu' || k === 'vu') && v > cur && cur > 0) useCount = 1;
+          if (useCount > cur) useCount = cur;
+          const next = cur - useCount;
+          state.result.inventory[k] = next > 0 ? next : 0;
+        }
+        StateManager.writeSave(state, naid);
+      }
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: state.result.inventory });
+    }
+
     return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: state.result.inventory });
   };
 };
