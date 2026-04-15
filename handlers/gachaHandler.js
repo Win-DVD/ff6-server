@@ -148,25 +148,30 @@ function applyReward(state, reward) {
   else if (reward.type === 'ct') state.result.inventory.ct = (state.result.inventory.ct || 0) + reward.count;
 }
 
+function getClientVersion(profile) {
+    const v = String(profile && profile.clientVersion != null ? profile.clientVersion : '').trim();
+    const m = v.match(/^(\d+)\.(\d+)\.(\d+)$/);
+    if (!m) return null;
+    const major = parseInt(m[1], 10);
+    if (major <= 1) return null;
+    return { major: major, minor: parseInt(m[2], 10), patch: parseInt(m[3], 10) };
+}
+
 function parseClientBuild(profile) {
-  const fromProfile = parseInt(profile && profile.clientBuild ? profile.clientBuild : 0, 10) || 0;
-  if (fromProfile > 0) return fromProfile;
-  const v = String(profile && profile.clientVersion ? profile.clientVersion : '').trim();
-  const legacy = v.match(/^1\.0\.(\d+)$/);
-  if (legacy) return parseInt(legacy[1], 10) || 0;
-  const modern = v.match(/^(\d+)\.(\d+)\.(\d+)$/);
-  if (modern) {
-    const major = parseInt(modern[1], 10) || 0;
-    const minor = parseInt(modern[2], 10) || 0;
-    const patch = parseInt(modern[3], 10) || 0;
-    if (major > 1) return 13598 + (major * 10000) + (minor * 100) + patch;
-  }
-  return 0;
+    if (!getClientVersion(profile)) {
+        const fromProfile = parseInt(profile && profile.clientBuild != null ? profile.clientBuild : 0, 10) || 0;
+        if (fromProfile > 0) return fromProfile;
+    }
+    const v = String(profile && profile.clientVersion != null ? profile.clientVersion : '').trim();
+    const legacy = v.match(/^1\.0\.(\d+)$/);
+    if (legacy) return parseInt(legacy[1], 10) || 0;
+    return 0;
 }
 
 function isOldGachaBuild(profile) {
-  const b = parseClientBuild(profile);
-  return b >= 11902 && b <= 12160;
+    if (getClientVersion(profile)) return false;
+    const b = parseClientBuild(profile);
+    return b >= 11902 && b <= 12160;
 }
 
 function nowTs() {

@@ -182,18 +182,11 @@ function parseClientPlatform(data) {
 }
 
 function parseClientBuild(data) {
-  const version = parseClientVersion(data);
-  if (!version) return 0;
-  const legacy = version.match(/^1\.0\.(\d+)$/);
-  if (legacy) return parseInt(legacy[1], 10) || 0;
-  const modern = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
-  if (modern) {
-    const major = parseInt(modern[1], 10) || 0;
-    const minor = parseInt(modern[2], 10) || 0;
-    const patch = parseInt(modern[3], 10) || 0;
-    if (major > 1) return 13598 + (major * 10000) + (minor * 100) + patch;
-  }
-  return 0;
+    const version = parseClientVersion(data);
+    if (!version) return 0;
+    const legacy = version.match(/^1\.0\.(\d+)$/);
+    if (legacy) return parseInt(legacy[1], 10) || 0;
+    return 0;
 }
 
 function createSessionToken() {
@@ -387,14 +380,28 @@ module.exports = function(deps) {
     if (check.ok) profile.name = check.value;
   }
 
+  function getClientVersion(data) {
+      const v = parseClientVersion(data);
+      if (!v) return null;
+      const m = v.match(/^(\d+)\.(\d+)\.(\d+)$/);
+      if (!m) return null;
+      const major = parseInt(m[1], 10);
+      if (major <= 1) return null;
+      return { major: major, minor: parseInt(m[2], 10), patch: parseInt(m[3], 10) };
+  }
+
   function applyClientInfo(profile, data) {
-    const clientVersion = parseClientVersion(data);
-    const clientPlatform = parseClientPlatform(data);
-    const clientBuild = parseClientBuild(data);
-    if (clientVersion) profile.clientVersion = clientVersion;
-    if (clientPlatform) profile.clientPlatform = clientPlatform;
-    if (clientBuild > 0) profile.clientBuild = clientBuild;
-    if (clientVersion || clientPlatform) profile.clientInfoUpdatedAt = Date.now();
+      const clientVersion = parseClientVersion(data);
+      const clientPlatform = parseClientPlatform(data);
+      const clientBuild = parseClientBuild(data);
+      if (clientVersion) profile.clientVersion = clientVersion;
+      if (clientPlatform) profile.clientPlatform = clientPlatform;
+      if (clientBuild > 0) {
+          profile.clientBuild = clientBuild;
+      } else if (getClientVersion(data)) {
+          profile.clientBuild = 0;
+      }
+      if (clientVersion || clientPlatform) profile.clientInfoUpdatedAt = Date.now();
   }
 
   function resolveIncomingStoken(data) {
