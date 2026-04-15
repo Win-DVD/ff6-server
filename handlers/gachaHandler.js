@@ -183,7 +183,7 @@ function isGachaApi3Build(profile) {
 function isGachaApi5Build(profile) {
     if (getClientVersion(profile)) return false;
     const b = parseClientBuild(profile);
-    return b >= 13313 && b <= 13314;
+    return b >= 13313 && b <= 13598;
 }
 
 function resolveGachaProtocol(req, body, profile) {
