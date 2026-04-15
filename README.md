@@ -4,8 +4,8 @@
 
 > **IMPORTANT: This will not work out of the box with node.js 24+, The cypher for the localhost certificate is too weak for node.js to allow startup. You need to use node.js 22.x.x LTS or older. Or alternatively remake the certificate with a stronger cypher.**
 
-This server is now much more complete as of 0.1.0, It can now save and load data reliably, and that fixes a lot of the issues.<br>
-1.x.x, 2.x.x and 3.0.x versions of the game are quite stable now. It's still quite experimental, but it's coming along quite well.<br>
+Current build of the server is 0.1.1<br>
+1.x.x, 2.x.x and 3.x.x versions of the game are quite stable now. It's still quite experimental, but it's coming along quite well.<br>
 Later versions of the game have some unimplemented server functionality that makes them not work very well.
 
 This is built with Node.JS 11 in mind since TLS 1.0 support is ideal for older devices that don't support TLS 1.2 communcation. Do keep in mind the security risks that entails though.<br>
@@ -38,7 +38,9 @@ The game has built in debug logs that don't go to logcat, but you can mod it to 
 
 * **Android Retail Build 3.0.0** – Great compatibility. (Needs more testing due to lack of good OBB)
 
-* **Android Retail Build 3.4.2** – Very Poor compatibility. (Fails to launch, Pretty sure due to SODA API not present in earlier and later builds.
+* **Android Retail Build 3.4.1** – Great compatibility.
+
+* **Android Retail Build 3.4.2** – Great compatibility.
 
 * **Android Retail Build 4.1.2** – Poor compatibility.
 

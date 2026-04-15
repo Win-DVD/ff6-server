@@ -1,10 +1,28 @@
-const path = require('path');
 const url = require('url');
-const { fs, safeJSONParse, sendJson, parseBodyObject } = require('../utils/common');
+const { safeJSONParse, sendJson, parseBodyObject } = require('../utils/common');
+
+const STORE_PAYOUTS = {
+  result: {
+    data: {
+      payoutSets: [
+        {
+          payouts: [
+            { productId: '1', cost: 2.99, numOfIGC: 30, coststring: '$2.99', thirdPartyId: 'com.kabam.fast.299', show: true, payoutid: 1, visible: 1, art: 1, longName: 'STACK_OF_GOLD' },
+            { productId: '2', cost: 4.99, numOfIGC: 55, coststring: '$4.99', thirdPartyId: 'com.kabam.fast.499', show: true, payoutid: 2, visible: 1, art: 2, longName: 'DUFFEL_BAG_OF_GOLD' },
+            { productId: '3', cost: 9.99, numOfIGC: 115, coststring: '$9.99', thirdPartyId: 'com.kabam.fast.999', show: true, payoutid: 3, visible: 1, art: 3, longName: 'CRATES_OF_GOLD' },
+            { productId: '4', cost: 19.99, numOfIGC: 250, coststring: '$19.99', thirdPartyId: 'com.kabam.fast.1999', show: true, payoutid: 4, visible: 1, art: 4, longName: 'CAR_TRUNK_OF_GOLD', popular: 1 },
+            { productId: '5', cost: 59.99, numOfIGC: 900, coststring: '$59.99', thirdPartyId: 'com.kabam.fast.5999', show: true, payoutid: 5, visible: 1, art: 5, longName: 'VAULT_OF_GOLD' },
+            { productId: '6', cost: 99.99, numOfIGC: 1600, coststring: '$99.99', thirdPartyId: 'com.kabam.fast.9999', show: true, payoutid: 6, visible: 1, art: 6, longName: 'SEMI_TRUCK_OF_GOLD', value: 1 }
+          ]
+        }
+      ]
+    },
+    externalTrkid: 'offline@dummy:googleapp'
+  }
+};
 
 module.exports = function(deps) {
   const StateManager = deps.StateManager;
-  const RESPONSES_DIR = deps.RESPONSES_DIR;
 
   function resolveNaid(req, body, parsedUrlInput) {
     const parsedUrl = parsedUrlInput || url.parse(req.url, true);
@@ -36,7 +54,11 @@ module.exports = function(deps) {
     return naid;
   }
 
-  return function handleStoreVerifyPayout(req, res, body, parsedUrl, pathname) {
+  function handleStorePayouts(req, res, body, parsedUrl) {
+    return sendJson(res, STORE_PAYOUTS);
+  }
+
+  function handleStoreVerifyPayout(req, res, body, parsedUrl, pathname) {
     const naid = resolveNaid(req, body, parsedUrl);
     const state = StateManager.loadSave(naid);
 
@@ -70,13 +92,7 @@ module.exports = function(deps) {
       });
     }
 
-    let offersJson = null;
-    try {
-      const p = path.join(RESPONSES_DIR, 'storepayouts.json');
-      if (fs.existsSync(p)) offersJson = safeJSONParse(fs.readFileSync(p, 'utf8'), null);
-    } catch (e) {
-      offersJson = null;
-    }
+    const offersJson = STORE_PAYOUTS;
 
     let credit = 0;
 
@@ -135,5 +151,8 @@ module.exports = function(deps) {
       ts: Math.floor(Date.now() / 1000),
       result: { success: true, balance: state.result.profile.gold || 0 }
     });
-  };
+  }
+
+  handleStoreVerifyPayout.handleStorePayouts = handleStorePayouts;
+  return handleStoreVerifyPayout;
 };
