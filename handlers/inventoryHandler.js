@@ -4,6 +4,21 @@ const { safeJSONParse, sendJson, parseBodyObject } = require('../utils/common');
 module.exports = function(deps) {
   const StateManager = deps.StateManager;
 
+  function buildInventoryPayload(state) {
+    const inv = {};
+    const source = state && state.result && state.result.inventory ? state.result.inventory : {};
+    const keys = Object.keys(source);
+    for (let i = 0; i < keys.length; i++) inv[keys[i]] = source[keys[i]];
+
+    const profile = state && state.result && state.result.profile ? state.result.profile : {};
+    const coins = parseInt(profile && profile.coins !== undefined ? profile.coins : 0, 10) || 0;
+    const gold = parseInt(profile && profile.gold !== undefined ? profile.gold : 0, 10) || 0;
+
+    inv.sc = coins;
+    inv.hc = gold;
+    return inv;
+  }
+
   function resolveNaid(req, body) {
     const parsedUrl = url.parse(req.url, true);
     const data = parseBodyObject(body, parsedUrl);
@@ -62,9 +77,9 @@ module.exports = function(deps) {
         }
         StateManager.writeSave(state, naid);
       }
-      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: state.result.inventory });
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: buildInventoryPayload(state) });
     }
 
-    return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: state.result.inventory });
+    return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: buildInventoryPayload(state) });
   };
 };
