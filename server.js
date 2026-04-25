@@ -188,6 +188,7 @@ const routes = [
   { path: '/carinfo',       handler: (req, res) => handleJsonResponse('jsonresponses/carinfo.json',       res) },
   { path: '/cars/save',     handler: (req, res, body) => handleCarsSave(req, res, body) },
   { path: '/cars/find',     handler: (req, res) => handleJsonResponse('jsonresponses/carsfind.json',      res) },
+  { path: '/cars/buyCarWithCurrency', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleBuyCarWithCurrency(req, res, body, parsedUrl, pathname) },
   { path: '/cars',          handler: (req, res, body, parsedUrl) => handleCarsSave.handleCarsList(req, res, body, parsedUrl) },
   { path: '/carupgrades/partUpgrade', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },
   { path: '/carupgrades/prestigeCar', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },

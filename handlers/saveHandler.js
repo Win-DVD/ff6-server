@@ -390,8 +390,29 @@ function createSaveHandler(deps) {
     const uid = String(data.uid || profile.uid || '1001');
 
     const carsByUid = ensureCarsNested(state, uid);
-    const list = carsObjToArray(carsByUid, uid);
-    return sendJson(res, list);
+    let list = carsObjToArray(carsByUid, uid);
+
+    if (!list || list.length === 0) {
+      const carsRoot = state && state.result ? state.result.cars || {} : {};
+      if (carsRoot && typeof carsRoot === 'object' && !Array.isArray(carsRoot)) {
+        const uids = Object.keys(carsRoot);
+        for (let i = 0; i < uids.length; i++) {
+          const otherUid = uids[i];
+          const otherCars = carsRoot[otherUid];
+          if (!otherCars || typeof otherCars !== 'object') continue;
+          const alt = carsObjToArray(otherCars, otherUid);
+          if (alt && alt.length > 0) {
+            list = alt;
+            break;
+          }
+        }
+      }
+    }
+
+    return sendJson(res, {
+      ts: Math.floor(Date.now() / 1000),
+      result: list || []
+    });
   }
 
   function resolveUpgradeNaid(req, body, parsedUrlInput) {
@@ -519,6 +540,76 @@ function createSaveHandler(deps) {
     });
   }
 
+  function buildPurchasedCar(uid, carName) {
+    const safeUid = String(uid || '1001');
+    const trimmed = String(carName || '').replace(/^car_attribute_/, '');
+    const quality = 15;
+    const out = normalizeCarRecord({
+      uid: safeUid,
+      r: {
+        c: 0,
+        n: trimmed,
+        p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        vu: [-1, -1, -1, -1, -1, -1, -1, -1, -1],
+        eu: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ut: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        q: quality
+      },
+      q: quality
+    }, safeUid, null);
+    if (out && out.e === undefined) out.e = 0;
+    return out;
+  }
+
+  function handleBuyCarWithCurrency(req, res, body, parsedUrl) {
+    const naid = resolveUpgradeNaid(req, body, parsedUrl);
+    const state = StateManager.loadSave(naid);
+    const data = parseBodyObject(body, parsedUrl);
+
+    ensureUpgradeProfile(state, naid);
+
+    const profile = state.result.profile || {};
+    const uid = String(profile.uid || data.uid || '1001');
+    const payment = String(data.payment || '').toLowerCase();
+    const price = parseIntSafe(data.price, 0);
+    const carNameRaw = String(data.carName || '').trim();
+    const carName = carNameRaw.replace(/^car_attribute_/, '');
+
+    if (!carName || price < 0) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    if (!applyUpgradePayment(profile, payment, price)) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    const purchasedCar = buildPurchasedCar(uid, carName);
+    if (!purchasedCar || !purchasedCar._id || !purchasedCar.r || !purchasedCar.r.n) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    const carsByUid = ensureCarsNested(state, uid);
+    carsByUid[purchasedCar._id] = purchasedCar;
+    profile.active_carid = purchasedCar._id;
+
+    const xp = updateUpgradeXp(profile, data.xp);
+    StateManager.writeSave(state, naid);
+
+    if (payment === 'hc' && typeof broadcast === 'function') {
+      broadcast({ component: 'WalletManager', message: 'sync', payload: {} });
+    }
+
+    return sendJson(res, {
+      ts: Math.floor(Date.now() / 1000),
+      result: {
+        car: purchasedCar,
+        xp: xp,
+        balance: parseIntSafe(profile.gold, 0),
+        __wallet: { balance: parseIntSafe(profile.gold, 0) }
+      }
+    });
+  }
+
   function handleCarUpgrades(req, res, body, parsedUrl, pathname) {
     const naid = resolveUpgradeNaid(req, body, parsedUrl);
     const state = StateManager.loadSave(naid);
@@ -622,6 +713,7 @@ function createSaveHandler(deps) {
 
   handleCarsSave.handleCarUpgrades = handleCarUpgrades;
   handleCarsSave.handleCarsList = handleCarsList;
+  handleCarsSave.handleBuyCarWithCurrency = handleBuyCarWithCurrency;
   return handleCarsSave;
 }
 
