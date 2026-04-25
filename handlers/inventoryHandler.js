@@ -57,7 +57,7 @@ module.exports = function(deps) {
         }
         StateManager.writeSave(state, naid);
       }
-      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { success: true } });
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: buildInventoryPayload(state) });
     }
 
     if (pathname === '/inventory/use') {

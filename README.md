@@ -4,7 +4,7 @@
 
 > **IMPORTANT: This will not work out of the box with node.js 24+, The cypher for the localhost certificate is too weak for node.js to allow startup. You need to use node.js 22.x.x LTS or older. Or alternatively remake the certificate with a stronger cypher.**
 
-Current build of the server is 0.1.1<br>
+Current build of the server is 0.1.2<br>
 1.x.x, 2.x.x and 3.x.x versions of the game are quite stable now. It's still quite experimental, but it's coming along quite well.<br>
 Later versions of the game have some unimplemented server functionality that makes them not work very well.
 
@@ -41,6 +41,14 @@ The game has built in debug logs that don't go to logcat, but you can mod it to 
 * **Android Retail Build 3.4.1** – Great compatibility.
 
 * **Android Retail Build 3.4.2** – Great compatibility.
+
+* **Android Retail Build 3.5.0** – Good compatibility.
+
+* **Android Retail Build 3.5.2** – Good compatibility.
+
+* **Android Retail Build 3.6.0** – Good compatibility.
+
+* **Android Retail Build 4.0.3** – Good compatibility.
 
 * **Android Retail Build 4.1.2** – Poor compatibility.
 

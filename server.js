@@ -51,7 +51,7 @@ function logError(message) {
   writeLog('ERROR', message, true);
 }
 
-logInfo('FF6 Custom Server v0.1.1');
+logInfo('FF6 Custom Server v0.1.2 DEV');
 logInfo('NOTE: This server is very unfinished, development is still underway.');
 logInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
 logInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
@@ -93,11 +93,11 @@ const StateManager = createSaveHandler.createStateManager({
 
 const handleAuth = createAuthHandler({ StateManager, SAVE_DIR });
 const handleDataStore = createDataStoreHandler({ StateManager });
-const handleCarsSave = createSaveHandler({ StateManager });
+const handleConnection = createWebsocketHandler({ logInfo, logError, StateManager });
+const handleCarsSave = createSaveHandler({ StateManager, broadcast: (msg) => handleConnection.broadcast(msg) });
 const walletHandlers = createWalletHandler({ StateManager });
 const handleStoreVerifyPayout = createStoreHandler({ StateManager, RESPONSES_DIR });
 const handleInventory = createInventoryHandler({ StateManager });
-const handleConnection = createWebsocketHandler({ logInfo, logError, StateManager });
 const handleGacha = createGachaHandler({
   StateManager,
   RESPONSES_DIR,
@@ -188,7 +188,10 @@ const routes = [
   { path: '/carinfo',       handler: (req, res) => handleJsonResponse('jsonresponses/carinfo.json',       res) },
   { path: '/cars/save',     handler: (req, res, body) => handleCarsSave(req, res, body) },
   { path: '/cars/find',     handler: (req, res) => handleJsonResponse('jsonresponses/carsfind.json',      res) },
-  { path: '/cars',          handler: (req, res) => handleJsonResponse('jsonresponses/cars.json',          res) },
+  { path: '/cars',          handler: (req, res, body, parsedUrl) => handleCarsSave.handleCarsList(req, res, body, parsedUrl) },
+  { path: '/carupgrades/partUpgrade', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },
+  { path: '/carupgrades/prestigeCar', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },
+  { path: '/carupgrades/visualUpgrade', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },
   { path: '/content',       handler: (req, res) => handleJsonResponse('jsonresponses/info.json',          res) },
   { path: '/auth/init',     handler: (req, res) => handleJsonResponse('jsonresponses/authinit.json',      res) },
   { path: '/kabam/register',handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
@@ -201,6 +204,8 @@ const routes = [
   { path: '/wallet/credit', handler: (req, res, body) => walletHandlers.handleWalletCredit(req, res, body) },
   { path: '/wallet/balance',handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleWalletBalance(req, res, body, pathname) },
   { path: '/wallet',        handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleWalletBalance(req, res, body, pathname) },
+  { path: '/currency/debit', handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleCurrency(req, res, body, pathname) },
+  { path: '/currency/credit', handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleCurrency(req, res, body, pathname) },
   { path: '/gacha/getTokens', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
   { path: '/gacha/getSet', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
   { path: '/gacha/getRewardCars', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },

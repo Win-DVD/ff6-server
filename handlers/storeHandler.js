@@ -123,7 +123,7 @@ module.exports = function(deps) {
     if (credit <= 0) {
       return sendJson(res, {
         ts: Math.floor(Date.now() / 1000),
-        err: 'unknown_product',
+        err: 'ID_SPARX_ERROR_UNKNOWN',
         result: { success: false }
       });
     }

@@ -86,7 +86,7 @@ module.exports = function(deps) {
     if (val > 0 && current < val) {
       return sendJson(res, {
         ts: Math.floor(Date.now() / 1000),
-        err: 'nsf',
+        err: 'ID_SPARX_ERROR_UNKNOWN',
         result: { retry: false, fatal: false, invalid_session: false }
       });
     }
@@ -130,9 +130,93 @@ module.exports = function(deps) {
     });
   }
 
+  function parseIntSafe(v, fallback) {
+    const n = parseInt(v, 10);
+    if (!isFinite(n)) return fallback;
+    return n;
+  }
+
+  function applyCurrencyDelta(profile, type, delta) {
+    const t = String(type || '').toLowerCase();
+    if (t === 'sc' || t === 'coins' || t === 'soft') {
+      const next = parseIntSafe(profile.coins, 0) + delta;
+      profile.coins = next < 0 ? 0 : next;
+      return t;
+    }
+    if (t === 'hc' || t === 'gold' || t === 'hard') {
+      const next = parseIntSafe(profile.gold, 0) + delta;
+      profile.gold = next < 0 ? 0 : next;
+      return t;
+    }
+    return '';
+  }
+
+  function handleCurrencyDebit(req, res, body) {
+    const parsedUrl = url.parse(req.url, true);
+    const naid = resolveNaid(req, body, parsedUrl);
+    const state = StateManager.loadSave(naid);
+    const params = parseBodyObject(body, parsedUrl);
+
+    ensureProfile(state);
+
+    const amount = Math.max(0, parseIntSafe(params.q, 0));
+    const xpGain = Math.max(0, parseIntSafe(params.xp, 0));
+    const type = String(params.t || '').toLowerCase();
+
+    if (amount <= 0) {
+      const xp = parseIntSafe(state.result.profile.xp, 0);
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { oldXp: xp, newXp: xp } });
+    }
+
+    if ((type === 'sc' || type === 'coins' || type === 'soft') && parseIntSafe(state.result.profile.coins, 0) < amount) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+    if ((type === 'hc' || type === 'gold' || type === 'hard') && parseIntSafe(state.result.profile.gold, 0) < amount) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    applyCurrencyDelta(state.result.profile, type, -amount);
+
+    const oldXp = parseIntSafe(state.result.profile.xp, 0);
+    const newXp = oldXp + xpGain;
+    state.result.profile.xp = newXp;
+
+    StateManager.writeSave(state, naid);
+    return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { oldXp, newXp } });
+  }
+
+  function handleCurrencyCredit(req, res, body) {
+    const parsedUrl = url.parse(req.url, true);
+    const naid = resolveNaid(req, body, parsedUrl);
+    const state = StateManager.loadSave(naid);
+    const params = parseBodyObject(body, parsedUrl);
+
+    ensureProfile(state);
+
+    const amount = Math.max(0, parseIntSafe(params.q !== undefined ? params.q : params.value, 0));
+    const type = String(params.t || 'hc').toLowerCase();
+    applyCurrencyDelta(state.result.profile, type, amount);
+
+    StateManager.writeSave(state, naid);
+
+    if (type === 'hc' || type === 'gold' || type === 'hard') {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { balance: parseIntSafe(state.result.profile.gold, 0) } });
+    }
+
+    return sendJson(res, { ts: Math.floor(Date.now() / 1000) });
+  }
+
+  function handleCurrency(req, res, body, pathname) {
+    if (pathname === '/currency/debit') return handleCurrencyDebit(req, res, body);
+    if (pathname === '/currency/credit') return handleCurrencyCredit(req, res, body);
+    return sendJson(res, { ts: Math.floor(Date.now() / 1000) });
+  }
+
+
   return {
     handleWalletBalance,
     handleWalletDebit,
-    handleWalletCredit
+    handleWalletCredit,
+    handleCurrency
   };
 };
