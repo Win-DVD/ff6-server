@@ -1,6 +1,5 @@
 const crypto = require('crypto');
-const url = require('url');
-const { sendJson, parseBodyObject } = require('../utils/common');
+const { sendJson, parseBodyObject, parseRequestUrl } = require('../utils/common');
 
 const GACHA_TABLES = [
   {
@@ -120,7 +119,7 @@ function weightedPick(items) {
 
 function resolveNaid(req, StateManager) {
   try {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const stoken = parsedUrl.query && parsedUrl.query.stoken ? String(parsedUrl.query.stoken) : '';
     if (stoken) {
       const naid = StateManager.findNaidByStoken(stoken);
@@ -199,7 +198,7 @@ function isGachaApi5Build(profile) {
 }
 
 function resolveGachaProtocol(req, body, profile) {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = parseRequestUrl(req);
   const params = parseBodyObject(body, parsedUrl);
   const apiVersion = parseInt(String(params.api || 0), 10) || 0;
   if (apiVersion === 3) return 'api3';
@@ -355,7 +354,7 @@ module.exports = function createGachaHandler(deps) {
 
   function handlePick(req, res, body) {
     try {
-      const parsedUrl = url.parse(req.url, true);
+      const parsedUrl = parseRequestUrl(req);
       const params = parseBodyObject(body, parsedUrl);
 
       const naid = resolveNaid(req, StateManager);
@@ -397,7 +396,7 @@ module.exports = function createGachaHandler(deps) {
 
   function handlePickApi5(req, res, body, naid) {
     try {
-      const parsedUrl = url.parse(req.url, true);
+      const parsedUrl = parseRequestUrl(req);
       const params = parseBodyObject(body, parsedUrl);
 
       const group = String(params.group || 'base');
@@ -463,7 +462,7 @@ module.exports = function createGachaHandler(deps) {
 
   function handlePickApi3(req, res, body, naid) {
     try {
-      const parsedUrl = url.parse(req.url, true);
+      const parsedUrl = parseRequestUrl(req);
       const params = parseBodyObject(body, parsedUrl);
 
       const group = String(params.group || 'base');

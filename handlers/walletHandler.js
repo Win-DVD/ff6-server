@@ -1,11 +1,10 @@
-const url = require('url');
-const { sendJson, parseBodyObject } = require('../utils/common');
+const { sendJson, parseBodyObject, parseRequestUrl } = require('../utils/common');
 
 module.exports = function(deps) {
   const StateManager = deps.StateManager;
 
   function resolveNaid(req, body, parsedUrlInput) {
-    const parsedUrl = parsedUrlInput || url.parse(req.url, true);
+    const parsedUrl = parsedUrlInput || parseRequestUrl(req);
     const data = parseBodyObject(body, parsedUrl);
     let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
 
@@ -59,7 +58,7 @@ module.exports = function(deps) {
   }
 
   function handleWalletBalance(req, res, body, pathname) {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const naid = resolveNaid(req, body, parsedUrl);
     const state = StateManager.loadSave(naid);
 
@@ -73,7 +72,7 @@ module.exports = function(deps) {
   }
 
   function handleWalletDebit(req, res, body) {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const naid = resolveNaid(req, body, parsedUrl);
     const state = StateManager.loadSave(naid);
     const params = parseBodyObject(body, parsedUrl);
@@ -106,7 +105,7 @@ module.exports = function(deps) {
   }
 
   function handleWalletCredit(req, res, body) {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const naid = resolveNaid(req, body, parsedUrl);
     const state = StateManager.loadSave(naid);
     const params = parseBodyObject(body, parsedUrl);
@@ -152,7 +151,7 @@ module.exports = function(deps) {
   }
 
   function handleCurrencyDebit(req, res, body) {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const naid = resolveNaid(req, body, parsedUrl);
     const state = StateManager.loadSave(naid);
     const params = parseBodyObject(body, parsedUrl);
@@ -186,7 +185,7 @@ module.exports = function(deps) {
   }
 
   function handleCurrencyCredit(req, res, body) {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const naid = resolveNaid(req, body, parsedUrl);
     const state = StateManager.loadSave(naid);
     const params = parseBodyObject(body, parsedUrl);

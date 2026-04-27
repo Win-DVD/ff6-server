@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 const crypto = require('crypto');
 const {
   safeJSONParse,
@@ -10,7 +9,8 @@ const {
   ensureCarsNested,
   carsObjToArray,
   carsArrayToObj,
-  isCarRecordLike
+  isCarRecordLike,
+  parseRequestUrl
 } = require('../utils/common');
 
 function sanitizeId(id) {
@@ -368,7 +368,7 @@ function createSaveHandler(deps) {
 
 
   function handleCarsList(req, res, body, parsedUrlInput) {
-    const parsedUrl = parsedUrlInput || url.parse(req.url, true);
+    const parsedUrl = parsedUrlInput || parseRequestUrl(req);
     const data = parseBodyObject(body, parsedUrl);
 
     let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
@@ -416,7 +416,7 @@ function createSaveHandler(deps) {
   }
 
   function resolveUpgradeNaid(req, body, parsedUrlInput) {
-    const parsedUrl = parsedUrlInput || url.parse(req.url, true);
+    const parsedUrl = parsedUrlInput || parseRequestUrl(req);
     const data = parseBodyObject(body, parsedUrl);
     let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
 
@@ -660,7 +660,7 @@ function createSaveHandler(deps) {
   }
 
   const handleCarsSave = function(req, res, body) {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const data = parseBodyObject(body, parsedUrl);
 
     const json = safeJSONParse(body, {});

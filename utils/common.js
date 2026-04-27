@@ -127,6 +127,40 @@ function parseBodyObject(body, parsedUrl) {
   return out;
 }
 
+function parseRequestUrl(req) {
+  const hasSocket = !!(req && req.socket);
+  const isHttps = hasSocket && !!req.socket.encrypted;
+  const protocol = isHttps ? 'https:' : 'http:';
+  const host = (req && req.headers && req.headers.host) ? req.headers.host : 'localhost';
+  const reqUrl = req && req.url ? req.url : '/';
+  const parsed = new URL(reqUrl, protocol + '//' + host);
+  const query = {};
+
+  parsed.searchParams.forEach((value, key) => {
+    if (Object.prototype.hasOwnProperty.call(query, key)) {
+      if (Array.isArray(query[key])) query[key].push(value);
+      else query[key] = [query[key], value];
+    } else {
+      query[key] = value;
+    }
+  });
+
+  return {
+    href: parsed.href,
+    protocol: parsed.protocol,
+    slashes: true,
+    auth: (parsed.username || parsed.password) ? (parsed.username + ':' + parsed.password) : null,
+    host: parsed.host,
+    port: parsed.port,
+    hostname: parsed.hostname,
+    hash: parsed.hash,
+    search: parsed.search,
+    query: query,
+    pathname: parsed.pathname,
+    path: parsed.pathname + parsed.search
+  };
+}
+
 function isCarRecordLike(v) {
   return !!(v && typeof v === 'object' && !Array.isArray(v) && (v.r || v.recipe || v._id || v.carId));
 }
@@ -200,6 +234,7 @@ module.exports = {
   carsArrayToObj,
   sendJson,
   parseBodyObject,
+  parseRequestUrl,
   isCarRecordLike,
   getCarsByUid,
   ensureCarsNested

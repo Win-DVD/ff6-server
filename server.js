@@ -6,11 +6,11 @@ const https    = require('https');
 const WebSocket = require('ws');
 const constants = require('crypto').constants;
 const path     = require('path');
-const url      = require('url');
 
 const {
   timestamp,
-  pretty
+  pretty,
+  parseRequestUrl
 } = require('./utils/common');
 const createAuthHandler = require('./handlers/authHandler');
 const createDataStoreHandler = require('./handlers/dataStoreHandler');
@@ -62,18 +62,36 @@ logInfo('Server is starting...');
 const serverConfig = {
   key: fs.readFileSync('localhost.key'),
   cert: fs.readFileSync('localhost.crt'),
-  secureOptions: constants.SSL_OP_NO_TLSv1_3, // disable tls 1.3, i dont even remember why i did this but hey, there it is lol
+
+  // allow tls 1.0 to 1.2
+  minVersion: 'TLSv1',
+  maxVersion: 'TLSv1.2',
+
   ciphers: [
-    'DHE-RSA-AES256-SHA',
-    'DHE-DSS-AES256-SHA',
+    // best suites for new clients that support them
+    'ECDHE-RSA-AES128-GCM-SHA256',
+    'ECDHE-RSA-AES256-GCM-SHA384',
+    'ECDHE-RSA-AES128-SHA256',
+    'ECDHE-RSA-AES256-SHA384',
+	'ECDHE-RSA-CHACHA20-POLY1305',
+
+    // for older clients
+    'ECDHE-RSA-AES128-SHA',
+    'ECDHE-RSA-AES256-SHA',
+
+    // dhe if no ecdhe support on the client
     'DHE-RSA-AES128-SHA',
-    'DHE-DSS-AES128-SHA',
-    'DHE-RSA-DES-CBC3-SHA',
-    'DHE-DSS-DES-CBC3-SHA',
-    'AES256-SHA',
+    'DHE-RSA-AES256-SHA',
+
+    // last resort for really old clients
     'AES128-SHA',
-    'DES-CBC3-SHA'
-  ].join(':')
+    'AES256-SHA',
+
+    // needed for TLS 1.0
+    '@SECLEVEL=0'
+  ].join(':'),
+
+  honorCipherOrder: true
 };
 
 const SAVE_DIR = path.join(__dirname, 'savedata');
@@ -110,14 +128,24 @@ const handleGacha = createGachaHandler({
 // new fancy logging stuff, looks prettier
 function logRequest(req, body) {
   if (req.url === '/bugs') return;
+
+  const isHttps = !!req.socket.encrypted;
+  const tlsProtocol = isHttps && req.socket.getProtocol ? req.socket.getProtocol() : null;
+  const tlsCipher = isHttps && req.socket.getCipher ? req.socket.getCipher() : null;
+
   const lines = [
-    '─── HTTP Request ───',
+    isHttps ? '─── HTTPS Request ───' : '─── HTTP Request ───',
     `Method : ${req.method}`,
     `URL    : ${req.url}`,
+    ...(isHttps ? [
+      `TLS    : ${tlsProtocol || '<unknown>'}`,
+      `Cipher : ${tlsCipher && tlsCipher.name ? tlsCipher.name : '<unknown>'}`
+    ] : []),
     `Headers: ${pretty(req.headers)}`,
     `Body   : ${body || '<empty>'}`,
     '────────────────────'
   ].join('\n');
+
   logInfo(lines);
 }
 
@@ -232,7 +260,7 @@ function handleRequest(req, res) {
   req.on('end', () => {
     logRequest(req, body);
 
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
 
     // log POST requests to /bugs to a JSON file
@@ -273,6 +301,10 @@ function handleRequest(req, res) {
 // create HTTPS server
 const httpsServer = https.createServer(serverConfig, handleRequest);
 httpsServer.listen(443, () => logInfo('HTTPS listening on port 443'));
+httpsServer.on('tlsClientError', (err, socket) => {
+  const remote = socket && socket.remoteAddress ? `${socket.remoteAddress}:${socket.remotePort}` : '<unknown>';
+  logError(`TLS Client Error from ${remote}: ${err.message}`);
+});
 httpsServer.on('secureConnection', socket => {
   socket.on('error', err => logError(`SSL Error: ${err.message}`));
 });
@@ -287,7 +319,7 @@ const wsServer  = new WebSocket.Server({ noServer: true });
 
 // handle WebSocket connections, i need to look more into what websockets actually do later, but for now loopback works.
 httpsServer.on('upgrade', (req, sock, head) => {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = parseRequestUrl(req);
   const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
   if (pathname === '/push/token') {
     logInfo(`WSS Upgrade: ${req.method} ${req.url}`);
@@ -298,7 +330,7 @@ httpsServer.on('upgrade', (req, sock, head) => {
 });
 
 httpServer.on('upgrade', (req, sock, head) => {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = parseRequestUrl(req);
   const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
   if (pathname === '/push/token') {
     logInfo(`WS Upgrade: ${req.method} ${req.url}`);
