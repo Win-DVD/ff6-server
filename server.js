@@ -22,8 +22,9 @@ const createWebsocketHandler = require('./handlers/websocketHandler');
 const createGachaHandler = require('./handlers/gachaHandler');
 
 // toggle logging here
-const consoleLoggingEnabled = true;
-const fileLoggingEnabled    = false;
+const consoleLoggingEnabled  = true;
+const sslDebugLoggingEnabled = false;
+const fileLoggingEnabled     = false;
 
 // you can set file name here if you want for the file log
 const logStream = fileLoggingEnabled
@@ -51,9 +52,18 @@ function logError(message) {
   writeLog('ERROR', message, true);
 }
 
+function logSslInfo(message) {
+  if (sslDebugLoggingEnabled) logInfo(message);
+}
+
+function logSslError(message) {
+  if (sslDebugLoggingEnabled) logError(message);
+}
+
 logInfo('FF6 Custom Server v0.1.2 DEV');
 logInfo('NOTE: This server is very unfinished, development is still underway.');
 logInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
+logInfo(`SSL logging is ${sslDebugLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
 logInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
 logInfo('Server is starting...');
 
@@ -73,7 +83,7 @@ const serverConfig = {
     'ECDHE-RSA-AES256-GCM-SHA384',
     'ECDHE-RSA-AES128-SHA256',
     'ECDHE-RSA-AES256-SHA384',
-	'ECDHE-RSA-CHACHA20-POLY1305',
+    'ECDHE-RSA-CHACHA20-POLY1305',
 
     // for older clients
     'ECDHE-RSA-AES128-SHA',
@@ -300,14 +310,72 @@ function handleRequest(req, res) {
 
 // create HTTPS server
 const httpsServer = https.createServer(serverConfig, handleRequest);
-httpsServer.listen(443, () => logInfo('HTTPS listening on port 443'));
+
+let tlsConnectionId = 0;
+
+function formatRemote(socket) {
+  if (!socket) return '<unknown>';
+
+  const s = socket._parent || socket.socket || socket;
+  return `${s.remoteAddress || '<unknown-ip>'}:${s.remotePort || '<unknown-port>'}`;
+}
+
+function getSocketInfo(socket) {
+  const s = socket || {};
+  const parent = s._parent || s.socket || {};
+
+  return {
+    id: s._ff6TlsConnectionId || parent._ff6TlsConnectionId || '?',
+    remote: s._ff6Remote || parent._ff6Remote || formatRemote(socket)
+  };
+}
+
+function formatTlsDetails(socket) {
+  if (!socket || !socket.encrypted) return '<no tls details>';
+
+  let protocol = '<unknown>';
+  let cipher = '<unknown>';
+
+  try {
+    protocol = socket.getProtocol ? socket.getProtocol() : '<unknown>';
+  } catch (e) {}
+
+  try {
+    const c = socket.getCipher ? socket.getCipher() : null;
+    cipher = c && c.name ? c.name : '<unknown>';
+  } catch (e) {}
+
+  return `${protocol} ${cipher}`;
+}
+
+httpsServer.on('connection', socket => {
+  const id = ++tlsConnectionId;
+  const remote = formatRemote(socket);
+
+  socket._ff6TlsConnectionId = id;
+  socket._ff6Remote = remote;
+
+  logSslInfo(`HTTPS TCP Connection #${id} from ${remote}`);
+});
+
 httpsServer.on('tlsClientError', (err, socket) => {
-  const remote = socket && socket.remoteAddress ? `${socket.remoteAddress}:${socket.remotePort}` : '<unknown>';
-  logError(`TLS Client Error from ${remote}: ${err.message}`);
+  const info = getSocketInfo(socket);
+  logSslError(`TLS Client Error #${info.id} from ${info.remote}: ${err.message}`);
 });
+
+httpsServer.on('clientError', (err, socket) => {
+  if (err && err.code === 'ECONNRESET') return;
+
+  const info = getSocketInfo(socket);
+  logSslError(`HTTPS Client Error #${info.id} from ${info.remote}: ${err.message}`);
+});
+
 httpsServer.on('secureConnection', socket => {
-  socket.on('error', err => logError(`SSL Error: ${err.message}`));
+  const info = getSocketInfo(socket);
+  logSslInfo(`TLS Connection #${info.id} from ${info.remote}: ${formatTlsDetails(socket)}`);
 });
+
+httpsServer.listen(443, () => logInfo('HTTPS listening on port 443'));
 
 // create HTTP server
 const httpServer = http.createServer(handleRequest);
