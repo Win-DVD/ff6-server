@@ -70,7 +70,7 @@ Optional flags:
 
 `--ssldebuglog` for ssl/tls logging
 
-`--filedebuglog` (path) for logging to file
+`--filedebuglog [FILE PATH HERE]` for logging to file
 
 ---
 
