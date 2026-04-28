@@ -22,22 +22,70 @@ const createWebsocketHandler = require('./handlers/websocketHandler');
 const createGachaHandler = require('./handlers/gachaHandler');
 
 // toggle logging here
-const consoleLoggingEnabled  = true;
-const sslDebugLoggingEnabled = false;
-const fileLoggingEnabled     = false;
+const defaultConsoleLoggingEnabled  = false;
+const defaultSslDebugLoggingEnabled = false;
+const defaultFileLoggingEnabled     = false;
+const defaultSilentLoggingEnabled   = false;
+const defaultLogFilePath = 'server.log';
+
+let consoleLoggingEnabled  = defaultConsoleLoggingEnabled;
+let sslDebugLoggingEnabled = defaultSslDebugLoggingEnabled;
+let fileLoggingEnabled     = defaultFileLoggingEnabled;
+let silentLoggingEnabled   = defaultSilentLoggingEnabled;
+let logFilePath = defaultLogFilePath;
+
+const args = process.argv.slice(2);
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--debuglog') {
+    consoleLoggingEnabled = true;
+  }
+
+  if (args[i] === '--ssldebuglog') {
+    sslDebugLoggingEnabled = true;
+  }
+
+  if (args[i] === '--filedebuglog') {
+    fileLoggingEnabled = true;
+
+    if (args[i + 1] && args[i + 1].indexOf('--') !== 0) {
+      logFilePath = args[i + 1];
+      i++;
+    }
+  }
+
+  if (args[i] === '--silent') {
+    silentLoggingEnabled = true;
+  }
+}
 
 // you can set file name here if you want for the file log
-const logStream = fileLoggingEnabled
-  ? fs.createWriteStream('server.log', { flags: 'a' })
+const logStream = fileLoggingEnabled && !silentLoggingEnabled
+  ? fs.createWriteStream(logFilePath, { flags: 'a' })
   : null;
 
 function writeLog(level, msg, toStdErr = false) {
+  if (silentLoggingEnabled) return;
+
   const line = `[${timestamp()}] [${level}] ${msg}\n`;
 
   if (consoleLoggingEnabled) {
     if (toStdErr) process.stderr.write(line);
     else          process.stdout.write(line);
   }
+
+  if (fileLoggingEnabled && logStream) {
+    logStream.write(line);
+  }
+}
+
+function writeStartupLog(level, msg, toStdErr = false) {
+  if (silentLoggingEnabled) return;
+
+  const line = `[${timestamp()}] [${level}] ${msg}\n`;
+
+  if (toStdErr) process.stderr.write(line);
+  else          process.stdout.write(line);
 
   if (fileLoggingEnabled && logStream) {
     logStream.write(line);
@@ -52,6 +100,14 @@ function logError(message) {
   writeLog('ERROR', message, true);
 }
 
+function logStartupInfo(message) {
+  writeStartupLog('INFO', message, false);
+}
+
+function logStartupError(message) {
+  writeStartupLog('ERROR', message, true);
+}
+
 function logSslInfo(message) {
   if (sslDebugLoggingEnabled) logInfo(message);
 }
@@ -60,12 +116,12 @@ function logSslError(message) {
   if (sslDebugLoggingEnabled) logError(message);
 }
 
-logInfo('FF6 Custom Server v0.1.2 DEV');
-logInfo('NOTE: This server is very unfinished, development is still underway.');
-logInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
-logInfo(`SSL logging is ${sslDebugLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
-logInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
-logInfo('Server is starting...');
+logStartupInfo('FF6 Custom Server v0.1.2');
+logStartupInfo('NOTE: This server is very unfinished, development is still underway.');
+logStartupInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
+logStartupInfo(`SSL logging is ${sslDebugLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
+logStartupInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
+logStartupInfo('Server is starting...');
 
 // read the certificate and private key, need this for HTTPS ingame but you can also just use HTTP.
 // if you do decide to use HTTPS you will need to replace the certificate in the client's assets.
@@ -375,11 +431,11 @@ httpsServer.on('secureConnection', socket => {
   logSslInfo(`TLS Connection #${info.id} from ${info.remote}: ${formatTlsDetails(socket)}`);
 });
 
-httpsServer.listen(443, () => logInfo('HTTPS listening on port 443'));
+httpsServer.listen(443, () => logStartupInfo('HTTPS listening on port 443'));
 
 // create HTTP server
 const httpServer = http.createServer(handleRequest);
-httpServer.listen(80, () => logInfo('HTTP listening on port 80'));
+httpServer.listen(80, () => logStartupInfo('HTTP listening on port 80'));
 
 // create WebSocket servers
 const wssServer = new WebSocket.Server({ noServer: true });
@@ -414,7 +470,7 @@ httpsServer.keepAliveTimeout = 60000;
 if (httpServer.headersTimeout !== undefined) httpServer.headersTimeout = 65000;
 if (httpsServer.headersTimeout !== undefined) httpsServer.headersTimeout = 65000;
 
-logInfo('Server is running...');
+logStartupInfo('Server is running...');
 
 // clean up ur mess
 process.on('exit', () => {

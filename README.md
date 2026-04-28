@@ -58,6 +58,20 @@ Feel free to leave a post in the issue section or message me in Discord if you h
 
 - **My Discord**: https://discord.gg/KMAq2mVaXp
 
+Usage:
+
+`node server.js`
+
+Optional flags:
+
+`--silent` for entirely silent startup
+
+`--debuglog` to enable request logging
+
+`--ssldebuglog` for ssl/tls logging
+
+`--filedebuglog` (path) for logging to file
+
 ---
 
 ### Galaxy Note Edge on Android 4.4.4 and running game version 1.0.4:
