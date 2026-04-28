@@ -40,8 +40,16 @@ function normalizeRecipe(r) {
   const out = {};
   out.c = (r.c !== undefined && r.c !== null) ? (parseInt(r.c, 10) || 0) : 0;
   out.n = trimCarPrefix((r.n !== undefined && r.n !== null) ? r.n : '');
-  out.p = normalizeArrayLen(r.p, 11, 0);
-  out.vu = normalizeArrayLen(r.vu, 9, -1);
+  out.p = normalizeArrayLen(r.p, 11, -1);
+  for (let i = 0; i < out.p.length; i++) {
+    const partValue = parseInt(out.p[i], 10);
+    out.p[i] = isFinite(partValue) && partValue >= -1 ? partValue : -1;
+  }
+  out.vu = normalizeArrayLen(r.vu, 9, 0);
+  for (let i = 0; i < out.vu.length; i++) {
+    const vuValue = parseInt(out.vu[i], 10);
+    out.vu[i] = isFinite(vuValue) && vuValue >= 0 ? vuValue : 0;
+  }
   out.eu = normalizeArrayLen(r.eu, 9, 0);
   out.ut = normalizeArrayLen(r.ut, 9, 0);
   out.q = (r.q !== undefined && r.q !== null) ? (Number(r.q) || 0) : 0;

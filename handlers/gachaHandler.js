@@ -138,7 +138,7 @@ function ensureCarRecord(state, uid, carId, trimmed, carClass) {
     r: {
       c: carClass || carData.c,
       n: trimmed,
-      p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      p: [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
       vu: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       eu: [-1, -1, -1, -1, -1, -1, -1, -1, -1],
       ut: [0, 0, 0, 0, 0, 0, 0, 0, 0],

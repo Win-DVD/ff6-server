@@ -483,8 +483,8 @@ function createSaveHandler(deps) {
     if (!Array.isArray(car.r.eu)) car.r.eu = [];
     if (!Array.isArray(car.r.ut)) car.r.ut = [];
 
-    while (car.r.p.length < 11) car.r.p.push(0);
-    while (car.r.vu.length < 9) car.r.vu.push(-1);
+    while (car.r.p.length < 11) car.r.p.push(-1);
+    while (car.r.vu.length < 9) car.r.vu.push(0);
     while (car.r.eu.length < 9) car.r.eu.push(0);
     while (car.r.ut.length < 9) car.r.ut.push(0);
 
@@ -495,6 +495,15 @@ function createSaveHandler(deps) {
     if (car.r.pc === undefined || car.r.pc === null) car.r.pc = '';
     if (car.q === undefined || car.q === null) car.q = Number(car.r.q || 0) || 0;
     if (car.e === undefined || car.e === null) car.e = 0;
+
+    for (let i = 0; i < car.r.vu.length; i++) {
+      const vuValue = parseIntSafe(car.r.vu[i], 0);
+      car.r.vu[i] = vuValue >= 0 ? vuValue : 0;
+    }
+    for (let i = 0; i < car.r.p.length; i++) {
+      const partValue = parseIntSafe(car.r.p[i], -1);
+      car.r.p[i] = partValue >= -1 ? partValue : -1;
+    }
   }
 
   function applyUpgradePayment(profile, payment, price) {
@@ -549,8 +558,8 @@ function createSaveHandler(deps) {
       r: {
         c: 0,
         n: trimmed,
-        p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        vu: [-1, -1, -1, -1, -1, -1, -1, -1, -1],
+        p: [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+        vu: [0, 0, 0, 0, 0, 0, 0, 0, 0],
         eu: [0, 0, 0, 0, 0, 0, 0, 0, 0],
         ut: [0, 0, 0, 0, 0, 0, 0, 0, 0],
         q: quality
@@ -641,8 +650,8 @@ function createSaveHandler(deps) {
       if (isFinite(newClass) && newClass >= 0) car.r.c = newClass;
     } else if (pathname === '/carupgrades/visualUpgrade') {
       const category = parseIntSafe(data.uc !== undefined ? data.uc : data.vc, -1);
-      const upgradeValue = parseIntSafe(data.ui !== undefined ? data.ui : data.vu, -1);
-      if (category >= 0 && category < car.r.vu.length) car.r.vu[category] = upgradeValue;
+      const upgradeValue = parseIntSafe(data.ui !== undefined ? data.ui : data.vu, 0);
+      if (category >= 0 && category < car.r.vu.length) car.r.vu[category] = upgradeValue >= 0 ? upgradeValue : 0;
     } else {
       return sendJson(res, { ts: Math.floor(Date.now() / 1000) });
     }
