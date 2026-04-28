@@ -1,0 +1,4 @@
+# ignore server generated files and folders
+savedata/
+bugs.json
+server.log

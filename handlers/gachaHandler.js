@@ -1,6 +1,5 @@
 const crypto = require('crypto');
-const url = require('url');
-const { sendJson, parseBodyObject } = require('../utils/common');
+const { sendJson, parseBodyObject, parseRequestUrl } = require('../utils/common');
 
 const GACHA_TABLES = [
   {
@@ -83,6 +82,13 @@ const GACHA_TABLES_2X = GACHA_TABLES.map(t => ({
   carsRequired: t.carsRequired
 }));
 
+const FREE_SPIN_TOKEN_BY_TABLE = {
+  0: 'gs_bronze',
+  1: 'gs_silver',
+  2: 'gs_gold',
+  3: 'gs_platinum'
+};
+
 function trimCarPrefix(name) {
   const s = String(name || '');
   const prefix = 'car_attribute_';
@@ -91,6 +97,11 @@ function trimCarPrefix(name) {
 
 function getCarData(name) {
   return CAR_DATA[trimCarPrefix(name)] || { q: 15.0, c: 0 };
+}
+
+function getFreeSpinTokenForTable(tableID) {
+  if (Object.prototype.hasOwnProperty.call(FREE_SPIN_TOKEN_BY_TABLE, tableID)) return FREE_SPIN_TOKEN_BY_TABLE[tableID];
+  return 'gs_bronze';
 }
 
 function weightedPick(items) {
@@ -108,7 +119,7 @@ function weightedPick(items) {
 
 function resolveNaid(req, StateManager) {
   try {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const stoken = parsedUrl.query && parsedUrl.query.stoken ? String(parsedUrl.query.stoken) : '';
     if (stoken) {
       const naid = StateManager.findNaidByStoken(stoken);
@@ -187,7 +198,7 @@ function isGachaApi5Build(profile) {
 }
 
 function resolveGachaProtocol(req, body, profile) {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = parseRequestUrl(req);
   const params = parseBodyObject(body, parsedUrl);
   const apiVersion = parseInt(String(params.api || 0), 10) || 0;
   if (apiVersion === 3) return 'api3';
@@ -242,13 +253,13 @@ function makeGachaApiSetForGroup(group) {
 
   const boxes = GACHA_TABLES.map(t => ({
     name: 'box_' + String(t.tableID),
-    token: 'ct',
+    token: getFreeSpinTokenForTable(t.tableID),
     image: 'ui_gacha/Gacha_Box_' + String(t.tableID),
     multiplier: t.multiplier,
     possiblePrizes: t.items.map(mapPrize),
     sc: { cost: t.softCost, xp: 1 },
     hc: { cost: t.hardCost, xp: 1 },
-    tokenc: { cost: Math.max(1, t.multiplier), xp: 1 }
+    tokenc: { cost: 1, xp: 1 }
   }));
 
   const possiblePrizes = [];
@@ -343,7 +354,7 @@ module.exports = function createGachaHandler(deps) {
 
   function handlePick(req, res, body) {
     try {
-      const parsedUrl = url.parse(req.url, true);
+      const parsedUrl = parseRequestUrl(req);
       const params = parseBodyObject(body, parsedUrl);
 
       const naid = resolveNaid(req, StateManager);
@@ -385,7 +396,7 @@ module.exports = function createGachaHandler(deps) {
 
   function handlePickApi5(req, res, body, naid) {
     try {
-      const parsedUrl = url.parse(req.url, true);
+      const parsedUrl = parseRequestUrl(req);
       const params = parseBodyObject(body, parsedUrl);
 
       const group = String(params.group || 'base');
@@ -408,10 +419,11 @@ module.exports = function createGachaHandler(deps) {
       let hardSpent = false;
 
       if (payment === 'token') {
-        const tokenCost = Math.max(1, table.multiplier);
-        const balance = state.result.inventory.ct || 0;
+        const freeSpinToken = getFreeSpinTokenForTable(table.tableID);
+        const tokenCost = 1;
+        const balance = state.result.inventory[freeSpinToken] || 0;
         if (balance < tokenCost) return sendJson(res, getSparxErrorResponse('ID_SPARX_ERROR_UNKNOWN'));
-        state.result.inventory.ct = balance - tokenCost;
+        state.result.inventory[freeSpinToken] = balance - tokenCost;
       } else if (payment === 'soft') {
         const coins = state.result.profile.coins || 0;
         if (coins < table.softCost) return sendJson(res, getSparxErrorResponse('ID_SPARX_ERROR_UNKNOWN'));
@@ -432,7 +444,10 @@ module.exports = function createGachaHandler(deps) {
 
       const item = { type: picked.type, data: picked.car ? picked.car : picked.type, quantity: picked.count };
       const result = { softToPay: payment === 'soft' ? table.softCost : 0, xpToGive: 1, items: [item] };
-      if (payment === 'token') result.balance = (StateManager.loadSave(naid).result.inventory || {}).ct || 0;
+      if (payment === 'token') {
+        const freeSpinToken = getFreeSpinTokenForTable(table.tableID);
+        result.balance = (StateManager.loadSave(naid).result.inventory || {})[freeSpinToken] || 0;
+      }
 
       if (picked.car && (picked.type === 'hc' || picked.type === 'lc')) {
         saveAndBroadcastCar(naid, StateManager.loadSave(naid), picked.car, picked.carClass);
@@ -447,7 +462,7 @@ module.exports = function createGachaHandler(deps) {
 
   function handlePickApi3(req, res, body, naid) {
     try {
-      const parsedUrl = url.parse(req.url, true);
+      const parsedUrl = parseRequestUrl(req);
       const params = parseBodyObject(body, parsedUrl);
 
       const group = String(params.group || 'base');
@@ -470,10 +485,11 @@ module.exports = function createGachaHandler(deps) {
       let hardSpent = false;
 
       if (payment === 'token') {
-        const tokenCost = Math.max(1, table.multiplier);
-        const balance = state.result.inventory.ct || 0;
+        const freeSpinToken = getFreeSpinTokenForTable(table.tableID);
+        const tokenCost = 1;
+        const balance = state.result.inventory[freeSpinToken] || 0;
         if (balance < tokenCost) return sendJson(res, getSparxErrorResponse('ID_SPARX_ERROR_UNKNOWN'));
-        state.result.inventory.ct = balance - tokenCost;
+        state.result.inventory[freeSpinToken] = balance - tokenCost;
       } else if (payment === 'soft') {
         const coins = state.result.profile.coins || 0;
         if (coins < table.softCost) return sendJson(res, getSparxErrorResponse('ID_SPARX_ERROR_UNKNOWN'));
@@ -503,7 +519,10 @@ module.exports = function createGachaHandler(deps) {
         softToPay: payment === 'soft' ? table.softCost : 0,
         xpToGive: 1
       };
-      if (payment === 'token') result.balance = (StateManager.loadSave(naid).result.inventory || {}).ct || 0;
+      if (payment === 'token') {
+        const freeSpinToken = getFreeSpinTokenForTable(table.tableID);
+        result.balance = (StateManager.loadSave(naid).result.inventory || {})[freeSpinToken] || 0;
+      }
 
       return sendJson(res, { result, ts: Math.floor(Date.now() / 1000) });
     } catch (e) {
@@ -601,13 +620,27 @@ module.exports = function createGachaHandler(deps) {
     }
     if (pathname === '/gacha/getTokens' && protocol === 'api3') {
       const state = StateManager.loadSave(naid);
-      const ct = state && state.result && state.result.inventory ? (state.result.inventory.ct || 0) : 0;
-      return sendJson(res, { result: [{ token: 'ct', count: ct }], ts: Math.floor(Date.now() / 1000) });
+      const inventory = state && state.result && state.result.inventory ? state.result.inventory : {};
+      const result = [
+        { token: 'ct', count: inventory.ct || 0 },
+        { token: 'gs_bronze', count: inventory.gs_bronze || 0 },
+        { token: 'gs_silver', count: inventory.gs_silver || 0 },
+        { token: 'gs_gold', count: inventory.gs_gold || 0 },
+        { token: 'gs_platinum', count: inventory.gs_platinum || 0 }
+      ];
+      return sendJson(res, { result: result, ts: Math.floor(Date.now() / 1000) });
     }
     if (pathname === '/gacha/getTokens' && protocol === 'api5') {
       const state = StateManager.loadSave(naid);
-      const ct = state && state.result && state.result.inventory ? (state.result.inventory.ct || 0) : 0;
-      return sendJson(res, { result: [{ token: 'ct', count: ct }], ts: Math.floor(Date.now() / 1000) });
+      const inventory = state && state.result && state.result.inventory ? state.result.inventory : {};
+      const result = [
+        { token: 'ct', count: inventory.ct || 0 },
+        { token: 'gs_bronze', count: inventory.gs_bronze || 0 },
+        { token: 'gs_silver', count: inventory.gs_silver || 0 },
+        { token: 'gs_gold', count: inventory.gs_gold || 0 },
+        { token: 'gs_platinum', count: inventory.gs_platinum || 0 }
+      ];
+      return sendJson(res, { result: result, ts: Math.floor(Date.now() / 1000) });
     }
     if (pathname === '/gacha/getTokens' || pathname === '/gacha/getRewardCars' || pathname === '/gacha/getTables' || pathname === '/gacha/getAttractImages') {
       return sendJson(res, isOldGachaBuild(profile) ? gacha2xResponse(pathname) : blankGachaResponse(pathname));

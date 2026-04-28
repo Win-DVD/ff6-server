@@ -1,5 +1,4 @@
-const url = require('url');
-const { safeJSONParse, sendJson, parseBodyObject } = require('../utils/common');
+const { safeJSONParse, sendJson, parseBodyObject, parseRequestUrl } = require('../utils/common');
 
 module.exports = function(deps) {
   const StateManager = deps.StateManager;
@@ -20,7 +19,7 @@ module.exports = function(deps) {
   }
 
   function resolveNaid(req, body) {
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const data = parseBodyObject(body, parsedUrl);
     let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
 
@@ -57,7 +56,7 @@ module.exports = function(deps) {
         }
         StateManager.writeSave(state, naid);
       }
-      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { success: true } });
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: buildInventoryPayload(state) });
     }
 
     if (pathname === '/inventory/use') {

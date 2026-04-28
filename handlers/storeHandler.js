@@ -1,5 +1,4 @@
-const url = require('url');
-const { safeJSONParse, sendJson, parseBodyObject } = require('../utils/common');
+const { safeJSONParse, sendJson, parseBodyObject, parseRequestUrl } = require('../utils/common');
 
 const STORE_PAYOUTS = {
   result: {
@@ -25,7 +24,7 @@ module.exports = function(deps) {
   const StateManager = deps.StateManager;
 
   function resolveNaid(req, body, parsedUrlInput) {
-    const parsedUrl = parsedUrlInput || url.parse(req.url, true);
+    const parsedUrl = parsedUrlInput || parseRequestUrl(req);
     const data = parseBodyObject(body, parsedUrl);
     let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
 
@@ -123,7 +122,7 @@ module.exports = function(deps) {
     if (credit <= 0) {
       return sendJson(res, {
         ts: Math.floor(Date.now() / 1000),
-        err: 'unknown_product',
+        err: 'ID_SPARX_ERROR_UNKNOWN',
         result: { success: false }
       });
     }

@@ -6,11 +6,11 @@ const https    = require('https');
 const WebSocket = require('ws');
 const constants = require('crypto').constants;
 const path     = require('path');
-const url      = require('url');
 
 const {
   timestamp,
-  pretty
+  pretty,
+  parseRequestUrl
 } = require('./utils/common');
 const createAuthHandler = require('./handlers/authHandler');
 const createDataStoreHandler = require('./handlers/dataStoreHandler');
@@ -22,21 +22,70 @@ const createWebsocketHandler = require('./handlers/websocketHandler');
 const createGachaHandler = require('./handlers/gachaHandler');
 
 // toggle logging here
-const consoleLoggingEnabled = true;
-const fileLoggingEnabled    = false;
+const defaultConsoleLoggingEnabled  = false;
+const defaultSslDebugLoggingEnabled = false;
+const defaultFileLoggingEnabled     = false;
+const defaultSilentLoggingEnabled   = false;
+const defaultLogFilePath = 'server.log';
+
+let consoleLoggingEnabled  = defaultConsoleLoggingEnabled;
+let sslDebugLoggingEnabled = defaultSslDebugLoggingEnabled;
+let fileLoggingEnabled     = defaultFileLoggingEnabled;
+let silentLoggingEnabled   = defaultSilentLoggingEnabled;
+let logFilePath = defaultLogFilePath;
+
+const args = process.argv.slice(2);
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--debuglog') {
+    consoleLoggingEnabled = true;
+  }
+
+  if (args[i] === '--ssldebuglog') {
+    sslDebugLoggingEnabled = true;
+  }
+
+  if (args[i] === '--filedebuglog') {
+    fileLoggingEnabled = true;
+
+    if (args[i + 1] && args[i + 1].indexOf('--') !== 0) {
+      logFilePath = args[i + 1];
+      i++;
+    }
+  }
+
+  if (args[i] === '--silent') {
+    silentLoggingEnabled = true;
+  }
+}
 
 // you can set file name here if you want for the file log
-const logStream = fileLoggingEnabled
-  ? fs.createWriteStream('server.log', { flags: 'a' })
+const logStream = fileLoggingEnabled && !silentLoggingEnabled
+  ? fs.createWriteStream(logFilePath, { flags: 'a' })
   : null;
 
 function writeLog(level, msg, toStdErr = false) {
+  if (silentLoggingEnabled) return;
+
   const line = `[${timestamp()}] [${level}] ${msg}\n`;
 
   if (consoleLoggingEnabled) {
     if (toStdErr) process.stderr.write(line);
     else          process.stdout.write(line);
   }
+
+  if (fileLoggingEnabled && logStream) {
+    logStream.write(line);
+  }
+}
+
+function writeStartupLog(level, msg, toStdErr = false) {
+  if (silentLoggingEnabled) return;
+
+  const line = `[${timestamp()}] [${level}] ${msg}\n`;
+
+  if (toStdErr) process.stderr.write(line);
+  else          process.stdout.write(line);
 
   if (fileLoggingEnabled && logStream) {
     logStream.write(line);
@@ -51,29 +100,64 @@ function logError(message) {
   writeLog('ERROR', message, true);
 }
 
-logInfo('FF6 Custom Server v0.1.1');
-logInfo('NOTE: This server is very unfinished, development is still underway.');
-logInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
-logInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
-logInfo('Server is starting...');
+function logStartupInfo(message) {
+  writeStartupLog('INFO', message, false);
+}
+
+function logStartupError(message) {
+  writeStartupLog('ERROR', message, true);
+}
+
+function logSslInfo(message) {
+  if (sslDebugLoggingEnabled) logInfo(message);
+}
+
+function logSslError(message) {
+  if (sslDebugLoggingEnabled) logError(message);
+}
+
+logStartupInfo('FF6 Custom Server v0.1.2');
+logStartupInfo('NOTE: This server is very unfinished, development is still underway.');
+logStartupInfo(`Console logging is ${consoleLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
+logStartupInfo(`SSL logging is ${sslDebugLoggingEnabled ? 'ENABLED' : 'DISABLED'}`);
+logStartupInfo(`File logging is ${fileLoggingEnabled    ? 'ENABLED' : 'DISABLED'}`);
+logStartupInfo('Server is starting...');
 
 // read the certificate and private key, need this for HTTPS ingame but you can also just use HTTP.
 // if you do decide to use HTTPS you will need to replace the certificate in the client's assets.
 const serverConfig = {
   key: fs.readFileSync('localhost.key'),
   cert: fs.readFileSync('localhost.crt'),
-  secureOptions: constants.SSL_OP_NO_TLSv1_3, // disable tls 1.3, i dont even remember why i did this but hey, there it is lol
+
+  // allow tls 1.0 to 1.2
+  minVersion: 'TLSv1',
+  maxVersion: 'TLSv1.2',
+
   ciphers: [
-    'DHE-RSA-AES256-SHA',
-    'DHE-DSS-AES256-SHA',
+    // best suites for new clients that support them
+    'ECDHE-RSA-AES128-GCM-SHA256',
+    'ECDHE-RSA-AES256-GCM-SHA384',
+    'ECDHE-RSA-AES128-SHA256',
+    'ECDHE-RSA-AES256-SHA384',
+    'ECDHE-RSA-CHACHA20-POLY1305',
+
+    // for older clients
+    'ECDHE-RSA-AES128-SHA',
+    'ECDHE-RSA-AES256-SHA',
+
+    // dhe if no ecdhe support on the client
     'DHE-RSA-AES128-SHA',
-    'DHE-DSS-AES128-SHA',
-    'DHE-RSA-DES-CBC3-SHA',
-    'DHE-DSS-DES-CBC3-SHA',
-    'AES256-SHA',
+    'DHE-RSA-AES256-SHA',
+
+    // last resort for really old clients
     'AES128-SHA',
-    'DES-CBC3-SHA'
-  ].join(':')
+    'AES256-SHA',
+
+    // needed for TLS 1.0
+    '@SECLEVEL=0'
+  ].join(':'),
+
+  honorCipherOrder: true
 };
 
 const SAVE_DIR = path.join(__dirname, 'savedata');
@@ -93,11 +177,11 @@ const StateManager = createSaveHandler.createStateManager({
 
 const handleAuth = createAuthHandler({ StateManager, SAVE_DIR });
 const handleDataStore = createDataStoreHandler({ StateManager });
-const handleCarsSave = createSaveHandler({ StateManager });
+const handleConnection = createWebsocketHandler({ logInfo, logError, StateManager });
+const handleCarsSave = createSaveHandler({ StateManager, broadcast: (msg) => handleConnection.broadcast(msg) });
 const walletHandlers = createWalletHandler({ StateManager });
 const handleStoreVerifyPayout = createStoreHandler({ StateManager, RESPONSES_DIR });
 const handleInventory = createInventoryHandler({ StateManager });
-const handleConnection = createWebsocketHandler({ logInfo, logError, StateManager });
 const handleGacha = createGachaHandler({
   StateManager,
   RESPONSES_DIR,
@@ -110,14 +194,24 @@ const handleGacha = createGachaHandler({
 // new fancy logging stuff, looks prettier
 function logRequest(req, body) {
   if (req.url === '/bugs') return;
+
+  const isHttps = !!req.socket.encrypted;
+  const tlsProtocol = isHttps && req.socket.getProtocol ? req.socket.getProtocol() : null;
+  const tlsCipher = isHttps && req.socket.getCipher ? req.socket.getCipher() : null;
+
   const lines = [
-    '─── HTTP Request ───',
+    isHttps ? '─── HTTPS Request ───' : '─── HTTP Request ───',
     `Method : ${req.method}`,
     `URL    : ${req.url}`,
+    ...(isHttps ? [
+      `TLS    : ${tlsProtocol || '<unknown>'}`,
+      `Cipher : ${tlsCipher && tlsCipher.name ? tlsCipher.name : '<unknown>'}`
+    ] : []),
     `Headers: ${pretty(req.headers)}`,
     `Body   : ${body || '<empty>'}`,
     '────────────────────'
   ].join('\n');
+
   logInfo(lines);
 }
 
@@ -188,7 +282,11 @@ const routes = [
   { path: '/carinfo',       handler: (req, res) => handleJsonResponse('jsonresponses/carinfo.json',       res) },
   { path: '/cars/save',     handler: (req, res, body) => handleCarsSave(req, res, body) },
   { path: '/cars/find',     handler: (req, res) => handleJsonResponse('jsonresponses/carsfind.json',      res) },
-  { path: '/cars',          handler: (req, res) => handleJsonResponse('jsonresponses/cars.json',          res) },
+  { path: '/cars/buyCarWithCurrency', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleBuyCarWithCurrency(req, res, body, parsedUrl, pathname) },
+  { path: '/cars',          handler: (req, res, body, parsedUrl) => handleCarsSave.handleCarsList(req, res, body, parsedUrl) },
+  { path: '/carupgrades/partUpgrade', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },
+  { path: '/carupgrades/prestigeCar', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },
+  { path: '/carupgrades/visualUpgrade', handler: (req, res, body, parsedUrl, pathname) => handleCarsSave.handleCarUpgrades(req, res, body, parsedUrl, pathname) },
   { path: '/content',       handler: (req, res) => handleJsonResponse('jsonresponses/info.json',          res) },
   { path: '/auth/init',     handler: (req, res) => handleJsonResponse('jsonresponses/authinit.json',      res) },
   { path: '/kabam/register',handler: (req, res, body, parsedUrl) => handleAuth(req, res, body, parsedUrl) },
@@ -201,6 +299,8 @@ const routes = [
   { path: '/wallet/credit', handler: (req, res, body) => walletHandlers.handleWalletCredit(req, res, body) },
   { path: '/wallet/balance',handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleWalletBalance(req, res, body, pathname) },
   { path: '/wallet',        handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleWalletBalance(req, res, body, pathname) },
+  { path: '/currency/debit', handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleCurrency(req, res, body, pathname) },
+  { path: '/currency/credit', handler: (req, res, body, parsedUrl, pathname) => walletHandlers.handleCurrency(req, res, body, pathname) },
   { path: '/gacha/getTokens', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
   { path: '/gacha/getSet', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
   { path: '/gacha/getRewardCars', handler: (req, res, body, parsedUrl, pathname) => handleGacha(req, res, body, parsedUrl, pathname) },
@@ -226,7 +326,7 @@ function handleRequest(req, res) {
   req.on('end', () => {
     logRequest(req, body);
 
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl = parseRequestUrl(req);
     const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
 
     // log POST requests to /bugs to a JSON file
@@ -266,14 +366,76 @@ function handleRequest(req, res) {
 
 // create HTTPS server
 const httpsServer = https.createServer(serverConfig, handleRequest);
-httpsServer.listen(443, () => logInfo('HTTPS listening on port 443'));
-httpsServer.on('secureConnection', socket => {
-  socket.on('error', err => logError(`SSL Error: ${err.message}`));
+
+let tlsConnectionId = 0;
+
+function formatRemote(socket) {
+  if (!socket) return '<unknown>';
+
+  const s = socket._parent || socket.socket || socket;
+  return `${s.remoteAddress || '<unknown-ip>'}:${s.remotePort || '<unknown-port>'}`;
+}
+
+function getSocketInfo(socket) {
+  const s = socket || {};
+  const parent = s._parent || s.socket || {};
+
+  return {
+    id: s._ff6TlsConnectionId || parent._ff6TlsConnectionId || '?',
+    remote: s._ff6Remote || parent._ff6Remote || formatRemote(socket)
+  };
+}
+
+function formatTlsDetails(socket) {
+  if (!socket || !socket.encrypted) return '<no tls details>';
+
+  let protocol = '<unknown>';
+  let cipher = '<unknown>';
+
+  try {
+    protocol = socket.getProtocol ? socket.getProtocol() : '<unknown>';
+  } catch (e) {}
+
+  try {
+    const c = socket.getCipher ? socket.getCipher() : null;
+    cipher = c && c.name ? c.name : '<unknown>';
+  } catch (e) {}
+
+  return `${protocol} ${cipher}`;
+}
+
+httpsServer.on('connection', socket => {
+  const id = ++tlsConnectionId;
+  const remote = formatRemote(socket);
+
+  socket._ff6TlsConnectionId = id;
+  socket._ff6Remote = remote;
+
+  logSslInfo(`HTTPS TCP Connection #${id} from ${remote}`);
 });
+
+httpsServer.on('tlsClientError', (err, socket) => {
+  const info = getSocketInfo(socket);
+  logSslError(`TLS Client Error #${info.id} from ${info.remote}: ${err.message}`);
+});
+
+httpsServer.on('clientError', (err, socket) => {
+  if (err && err.code === 'ECONNRESET') return;
+
+  const info = getSocketInfo(socket);
+  logSslError(`HTTPS Client Error #${info.id} from ${info.remote}: ${err.message}`);
+});
+
+httpsServer.on('secureConnection', socket => {
+  const info = getSocketInfo(socket);
+  logSslInfo(`TLS Connection #${info.id} from ${info.remote}: ${formatTlsDetails(socket)}`);
+});
+
+httpsServer.listen(443, () => logStartupInfo('HTTPS listening on port 443'));
 
 // create HTTP server
 const httpServer = http.createServer(handleRequest);
-httpServer.listen(80, () => logInfo('HTTP listening on port 80'));
+httpServer.listen(80, () => logStartupInfo('HTTP listening on port 80'));
 
 // create WebSocket servers
 const wssServer = new WebSocket.Server({ noServer: true });
@@ -281,7 +443,7 @@ const wsServer  = new WebSocket.Server({ noServer: true });
 
 // handle WebSocket connections, i need to look more into what websockets actually do later, but for now loopback works.
 httpsServer.on('upgrade', (req, sock, head) => {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = parseRequestUrl(req);
   const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
   if (pathname === '/push/token') {
     logInfo(`WSS Upgrade: ${req.method} ${req.url}`);
@@ -292,7 +454,7 @@ httpsServer.on('upgrade', (req, sock, head) => {
 });
 
 httpServer.on('upgrade', (req, sock, head) => {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = parseRequestUrl(req);
   const pathname = parsedUrl && parsedUrl.pathname ? parsedUrl.pathname : req.url;
   if (pathname === '/push/token') {
     logInfo(`WS Upgrade: ${req.method} ${req.url}`);
@@ -308,7 +470,7 @@ httpsServer.keepAliveTimeout = 60000;
 if (httpServer.headersTimeout !== undefined) httpServer.headersTimeout = 65000;
 if (httpsServer.headersTimeout !== undefined) httpsServer.headersTimeout = 65000;
 
-logInfo('Server is running...');
+logStartupInfo('Server is running...');
 
 // clean up ur mess
 process.on('exit', () => {

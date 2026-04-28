@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 const crypto = require('crypto');
 const {
   safeJSONParse,
@@ -8,8 +7,10 @@ const {
   parseBodyObject,
   normalizeCarRecord,
   ensureCarsNested,
+  carsObjToArray,
   carsArrayToObj,
-  isCarRecordLike
+  isCarRecordLike,
+  parseRequestUrl
 } = require('../utils/common');
 
 function sanitizeId(id) {
@@ -360,9 +361,306 @@ function createStateManager(config) {
 
 function createSaveHandler(deps) {
   const StateManager = deps.StateManager;
+  const broadcast = deps.broadcast;
 
-  return function handleCarsSave(req, res, body) {
-    const parsedUrl = url.parse(req.url, true);
+
+
+
+
+  function handleCarsList(req, res, body, parsedUrlInput) {
+    const parsedUrl = parsedUrlInput || parseRequestUrl(req);
+    const data = parseBodyObject(body, parsedUrl);
+
+    let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
+    if (!naid && data.uid !== undefined && data.uid !== null) {
+      const byUid = StateManager.findNaidByUid(String(data.uid));
+      if (byUid) naid = String(byUid);
+    }
+    if (!naid) {
+      const stoken = data.stoken || data.session || data.token || data.st || data.s;
+      if (stoken) {
+        const byToken = StateManager.findNaidByStoken(String(stoken));
+        if (byToken) naid = String(byToken);
+      }
+    }
+    if (!naid) naid = 'guest';
+
+    const state = StateManager.loadSave(naid);
+    const profile = state && state.result ? state.result.profile || {} : {};
+    const uid = String(data.uid || profile.uid || '1001');
+
+    const carsByUid = ensureCarsNested(state, uid);
+    let list = carsObjToArray(carsByUid, uid);
+
+    if (!list || list.length === 0) {
+      const carsRoot = state && state.result ? state.result.cars || {} : {};
+      if (carsRoot && typeof carsRoot === 'object' && !Array.isArray(carsRoot)) {
+        const uids = Object.keys(carsRoot);
+        for (let i = 0; i < uids.length; i++) {
+          const otherUid = uids[i];
+          const otherCars = carsRoot[otherUid];
+          if (!otherCars || typeof otherCars !== 'object') continue;
+          const alt = carsObjToArray(otherCars, otherUid);
+          if (alt && alt.length > 0) {
+            list = alt;
+            break;
+          }
+        }
+      }
+    }
+
+    return sendJson(res, {
+      ts: Math.floor(Date.now() / 1000),
+      result: list || []
+    });
+  }
+
+  function resolveUpgradeNaid(req, body, parsedUrlInput) {
+    const parsedUrl = parsedUrlInput || parseRequestUrl(req);
+    const data = parseBodyObject(body, parsedUrl);
+    let naid = String(data.naid || data.openudid || data.player_id || data.device_id || data.udid || '');
+
+    if (!naid && data.uid !== undefined && data.uid !== null) {
+      const byUid = StateManager.findNaidByUid(String(data.uid));
+      if (byUid) naid = String(byUid);
+    }
+
+    if (!naid) {
+      const stoken = data.stoken || data.session || data.token || data.st || data.s;
+      if (stoken) {
+        const byToken = StateManager.findNaidByStoken(String(stoken));
+        if (byToken) naid = String(byToken);
+      }
+    }
+
+    if (!naid) naid = 'guest';
+    return naid;
+  }
+
+  function ensureUpgradeProfile(state, naid) {
+    if (!state.result) state.result = {};
+    if (!state.result.profile) state.result.profile = {};
+
+    const account = StateManager.getProfile(naid);
+    if (!state.result.profile.uid && account && account.uid) state.result.profile.uid = account.uid;
+
+    if (!state.result.profile.active_carid) {
+      const uid = String(state.result.profile.uid || (account && account.uid) || '1001');
+      const cars = ensureCarsNested(state, uid);
+      const ids = Object.keys(cars || {});
+      if (ids.length > 0) state.result.profile.active_carid = ids[0];
+    }
+
+    if (state.result.profile.xp === undefined || state.result.profile.xp === null) state.result.profile.xp = 0;
+    if (state.result.profile.coins === undefined || state.result.profile.coins === null) state.result.profile.coins = 0;
+    if (state.result.profile.gold === undefined || state.result.profile.gold === null) state.result.profile.gold = 0;
+  }
+
+  function parseIntSafe(v, fallback) {
+    const n = parseInt(v, 10);
+    if (!isFinite(n)) return fallback;
+    return n;
+  }
+
+  function findUpgradeCar(state, uid, carId) {
+    const cars = ensureCarsNested(state, uid);
+    if (!cars || typeof cars !== 'object') return null;
+    if (carId && cars[carId]) return cars[carId];
+
+    const keys = Object.keys(cars);
+    if (keys.length === 0) return null;
+
+    const activeId = state && state.result && state.result.profile ? state.result.profile.active_carid : '';
+    if (activeId && cars[activeId]) return cars[activeId];
+
+    return cars[keys[0]];
+  }
+
+  function normalizeUpgradeCar(car) {
+    if (!car.r || typeof car.r !== 'object') car.r = {};
+    if (!Array.isArray(car.r.p)) car.r.p = [];
+    if (!Array.isArray(car.r.vu)) car.r.vu = [];
+    if (!Array.isArray(car.r.eu)) car.r.eu = [];
+    if (!Array.isArray(car.r.ut)) car.r.ut = [];
+
+    while (car.r.p.length < 11) car.r.p.push(0);
+    while (car.r.vu.length < 9) car.r.vu.push(-1);
+    while (car.r.eu.length < 9) car.r.eu.push(0);
+    while (car.r.ut.length < 9) car.r.ut.push(0);
+
+    if (car.r.q === undefined || car.r.q === null) car.r.q = Number(car.q || 0) || 0;
+    if (car.r.et === undefined || car.r.et === null) car.r.et = 1;
+    if (car.r.dc === undefined || car.r.dc === null) car.r.dc = -1;
+    if (car.r.tid === undefined || car.r.tid === null) car.r.tid = '';
+    if (car.r.pc === undefined || car.r.pc === null) car.r.pc = '';
+    if (car.q === undefined || car.q === null) car.q = Number(car.r.q || 0) || 0;
+    if (car.e === undefined || car.e === null) car.e = 0;
+  }
+
+  function applyUpgradePayment(profile, payment, price) {
+    const cur = String(payment || '').toLowerCase();
+    const amount = parseIntSafe(price, 0);
+    if (amount <= 0) return true;
+
+    if (cur === 'sc' || cur === 'coins' || cur === 'soft') {
+      const coins = parseIntSafe(profile.coins, 0);
+      if (coins < amount) return false;
+      profile.coins = coins - amount;
+      return true;
+    }
+
+    if (cur === 'hc' || cur === 'gold' || cur === 'hard') {
+      const gold = parseIntSafe(profile.gold, 0);
+      if (gold < amount) return false;
+      profile.gold = gold - amount;
+      return true;
+    }
+
+    return true;
+  }
+
+  function updateUpgradeXp(profile, xpAward) {
+    const oldXp = parseIntSafe(profile.xp, 0);
+    const gain = Math.max(0, parseIntSafe(xpAward, 0));
+    const newXp = oldXp + gain;
+    profile.xp = newXp;
+    return { oldXp, newXp };
+  }
+
+  function sendUpgradeResponse(res, car, xp, profile) {
+    const balance = parseIntSafe(profile && profile.gold !== undefined ? profile.gold : 0, 0);
+    return sendJson(res, {
+      ts: Math.floor(Date.now() / 1000),
+      result: {
+        car: car,
+        xp: xp,
+        balance: balance,
+        __wallet: { balance: balance }
+      }
+    });
+  }
+
+  function buildPurchasedCar(uid, carName) {
+    const safeUid = String(uid || '1001');
+    const trimmed = String(carName || '').replace(/^car_attribute_/, '');
+    const quality = 15;
+    const out = normalizeCarRecord({
+      uid: safeUid,
+      r: {
+        c: 0,
+        n: trimmed,
+        p: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        vu: [-1, -1, -1, -1, -1, -1, -1, -1, -1],
+        eu: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ut: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        q: quality
+      },
+      q: quality
+    }, safeUid, null);
+    if (out && out.e === undefined) out.e = 0;
+    return out;
+  }
+
+  function handleBuyCarWithCurrency(req, res, body, parsedUrl) {
+    const naid = resolveUpgradeNaid(req, body, parsedUrl);
+    const state = StateManager.loadSave(naid);
+    const data = parseBodyObject(body, parsedUrl);
+
+    ensureUpgradeProfile(state, naid);
+
+    const profile = state.result.profile || {};
+    const uid = String(profile.uid || data.uid || '1001');
+    const payment = String(data.payment || '').toLowerCase();
+    const price = parseIntSafe(data.price, 0);
+    const carNameRaw = String(data.carName || '').trim();
+    const carName = carNameRaw.replace(/^car_attribute_/, '');
+
+    if (!carName || price < 0) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    if (!applyUpgradePayment(profile, payment, price)) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    const purchasedCar = buildPurchasedCar(uid, carName);
+    if (!purchasedCar || !purchasedCar._id || !purchasedCar.r || !purchasedCar.r.n) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    const carsByUid = ensureCarsNested(state, uid);
+    carsByUid[purchasedCar._id] = purchasedCar;
+    profile.active_carid = purchasedCar._id;
+
+    const xp = updateUpgradeXp(profile, data.xp);
+    StateManager.writeSave(state, naid);
+
+    if (payment === 'hc' && typeof broadcast === 'function') {
+      broadcast({ component: 'WalletManager', message: 'sync', payload: {} });
+    }
+
+    return sendJson(res, {
+      ts: Math.floor(Date.now() / 1000),
+      result: {
+        car: purchasedCar,
+        xp: xp,
+        balance: parseIntSafe(profile.gold, 0),
+        __wallet: { balance: parseIntSafe(profile.gold, 0) }
+      }
+    });
+  }
+
+  function handleCarUpgrades(req, res, body, parsedUrl, pathname) {
+    const naid = resolveUpgradeNaid(req, body, parsedUrl);
+    const state = StateManager.loadSave(naid);
+    const data = parseBodyObject(body, parsedUrl);
+
+    ensureUpgradeProfile(state, naid);
+    const uid = String(state.result.profile.uid || '1001');
+    const car = findUpgradeCar(state, uid, String(data.id || ''));
+
+    if (!car) return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN' });
+
+    normalizeUpgradeCar(car);
+
+    if (!applyUpgradePayment(state.result.profile, data.payment, data.price)) {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000), err: 'ID_SPARX_ERROR_UNKNOWN', result: { retry: false, fatal: false, invalid_session: false } });
+    }
+
+    if (pathname === '/carupgrades/partUpgrade') {
+      const category = parseIntSafe(data.uc, -1);
+      const index = parseIntSafe(data.ui, -1);
+      if (category >= 0 && category < car.r.eu.length && index >= 0) {
+        car.r.eu[category] = index;
+        if (category < car.r.ut.length) car.r.ut[category] = 0;
+      }
+    } else if (pathname === '/carupgrades/prestigeCar') {
+      const prestigeName = String(data.pc || '').replace(/^car_attribute_/, '');
+      const newClass = parseIntSafe(data.c, car.r.c || 0);
+      if (prestigeName) car.r.n = prestigeName;
+      if (isFinite(newClass) && newClass >= 0) car.r.c = newClass;
+    } else if (pathname === '/carupgrades/visualUpgrade') {
+      const category = parseIntSafe(data.uc !== undefined ? data.uc : data.vc, -1);
+      const upgradeValue = parseIntSafe(data.ui !== undefined ? data.ui : data.vu, -1);
+      if (category >= 0 && category < car.r.vu.length) car.r.vu[category] = upgradeValue;
+    } else {
+      return sendJson(res, { ts: Math.floor(Date.now() / 1000) });
+    }
+
+    const xp = updateUpgradeXp(state.result.profile, data.xp);
+    car.q = Number(car.r.q || car.q || 0) || 0;
+
+    StateManager.writeSave(state, naid);
+
+    if (String(data.payment || '').toLowerCase() === 'hc' && typeof broadcast === 'function') {
+      broadcast({ component: 'WalletManager', message: 'sync', payload: {} });
+    }
+
+    return sendUpgradeResponse(res, car, xp, state.result.profile);
+  }
+
+  const handleCarsSave = function(req, res, body) {
+    const parsedUrl = parseRequestUrl(req);
     const data = parseBodyObject(body, parsedUrl);
 
     const json = safeJSONParse(body, {});
@@ -412,7 +710,13 @@ function createSaveHandler(deps) {
       }
     });
   };
+
+  handleCarsSave.handleCarUpgrades = handleCarUpgrades;
+  handleCarsSave.handleCarsList = handleCarsList;
+  handleCarsSave.handleBuyCarWithCurrency = handleBuyCarWithCurrency;
+  return handleCarsSave;
 }
+
 
 createSaveHandler.createStateManager = createStateManager;
 

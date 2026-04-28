@@ -1,0 +1,30 @@
+[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_req
+req_extensions = v3_req
+
+[ dn ]
+C = CA
+ST = BC
+L = Vancouver
+O = win-games
+CN = ff6.win-games.uk
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = ff6.win-games.uk
+DNS.2 = localhost
+IP.1 = 127.0.0.1
+IP.2 = 192.168.1.11
+IP.3 = 192.168.1.142
+IP.4 = 10.10.1.106
+IP.5 = 10.10.1.111
+IP.6 = 10.0.0.70

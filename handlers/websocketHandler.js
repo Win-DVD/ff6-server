@@ -1,6 +1,7 @@
 module.exports = function(deps) {
   const logInfo = deps.logInfo;
   const logError = deps.logError;
+  const sockets = new Set();
 
   function isSecureRequest(req) {
     const xfProto = req && req.headers && req.headers['x-forwarded-proto'] ? String(req.headers['x-forwarded-proto']).toLowerCase() : '';
@@ -51,8 +52,26 @@ module.exports = function(deps) {
     }
   }
 
+
+
+  function broadcast(messageObj) {
+    let payload = '';
+    try {
+      payload = JSON.stringify(messageObj || {});
+    } catch (e) {
+      return;
+    }
+
+    sockets.forEach((ws) => {
+      try {
+        if (ws && ws.readyState === 1) ws.send(payload);
+      } catch (e) {}
+    });
+  }
+
   function handleConnection(ws, secure) {
     const tag = secure ? 'WSS' : 'WS';
+    sockets.add(ws);
     ws.on('message', message => {
       logInfo(`${tag} Message: ${message}`);
       ws.send(message);
@@ -61,10 +80,12 @@ module.exports = function(deps) {
       logError(`${tag} Error: ${err.message}`);
     });
     ws.on('close', (code, reason) => {
+      sockets.delete(ws);
       logInfo(`${tag} Close: code=${code}, reason=${reason}`);
     });
   }
 
+  handleConnection.broadcast = broadcast;
   handleConnection.handlePushToken = handlePushToken;
   return handleConnection;
 };
