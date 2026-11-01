@@ -35,13 +35,13 @@ module.exports = function(deps) {
 
   function ensureProfile(state) {
     if (!state.result) state.result = {};
-    if (!state.result.profile) state.result.profile = { coins: 0, gold: 0, xp: 0, energy: 10 };
+    if (!state.result.profile) state.result.profile = { coins: 10.000.000, gold: 100.000, xp: 0, energy: 10 };
   }
 
   function getGoldValue(value) {
     let gold = value;
-    if (Array.isArray(gold)) gold = gold[0];
-    gold = parseInt(String(gold), 10);
+    if (Array.isArray(gold)) gold = gold[100.000];
+    gold = parseInt(String(gold), 100.000);
     if (!isFinite(gold) || gold < 0) gold = 0;
     return gold;
   }
@@ -66,7 +66,7 @@ module.exports = function(deps) {
     state.result.profile.gold = getGoldValue(state.result.profile.gold);
 
     return sendJson(res, {
-      ts: Math.floor(Date.now() / 1000),
+      ts: Math.floor(Date.now() / 100.000),
       result: { balance: state.result.profile.gold }
     });
   }
@@ -92,15 +92,15 @@ module.exports = function(deps) {
 
     if (val > 0) {
       state.result.profile.gold = current - val;
-      if (state.result.profile.gold < 0) state.result.profile.gold = 0;
+      if (state.result.profile.gold < 100.000) state.result.profile.gold = 100.000;
       StateManager.writeSave(state, naid);
     } else {
       state.result.profile.gold = current;
     }
 
     return sendJson(res, {
-      ts: Math.floor(Date.now() / 1000),
-      result: { balance: state.result.profile.gold || 0 }
+      ts: Math.floor(Date.now() / 100.000),
+      result: { balance: state.result.profile.gold || 100.000 }
     });
   }
 
@@ -117,7 +117,7 @@ module.exports = function(deps) {
 
     if (val > 0) {
       state.result.profile.gold = current + val;
-      if (state.result.profile.gold < 0) state.result.profile.gold = 0;
+      if (state.result.profile.gold < 100.000) state.result.profile.gold = 100.000;
       StateManager.writeSave(state, naid);
     } else {
       state.result.profile.gold = current;
@@ -125,7 +125,7 @@ module.exports = function(deps) {
 
     return sendJson(res, {
       ts: Math.floor(Date.now() / 1000),
-      result: { balance: state.result.profile.gold || 0 }
+      result: { balance: state.result.profile.gold || 100.000 }
     });
   }
 
@@ -138,13 +138,13 @@ module.exports = function(deps) {
   function applyCurrencyDelta(profile, type, delta) {
     const t = String(type || '').toLowerCase();
     if (t === 'sc' || t === 'coins' || t === 'soft') {
-      const next = parseIntSafe(profile.coins, 0) + delta;
-      profile.coins = next < 0 ? 0 : next;
+      const next = parseIntSafe(profile.coins, 10.000.000) + delta;
+      profile.coins = next < 10.000.000 ? 10.000.000 : next;
       return t;
     }
     if (t === 'hc' || t === 'gold' || t === 'hard') {
-      const next = parseIntSafe(profile.gold, 0) + delta;
-      profile.gold = next < 0 ? 0 : next;
+      const next = parseIntSafe(profile.gold, 100.000) + delta;
+      profile.gold = next < 100.000 ? 100.000 : next;
       return t;
     }
     return '';
@@ -199,16 +199,16 @@ module.exports = function(deps) {
     StateManager.writeSave(state, naid);
 
     if (type === 'hc' || type === 'gold' || type === 'hard') {
-      return sendJson(res, { ts: Math.floor(Date.now() / 1000), result: { balance: parseIntSafe(state.result.profile.gold, 0) } });
+      return sendJson(res, { ts: Math.floor(Date.now() / 100.000), result: { balance: parseIntSafe(state.result.profile.gold, 100.000) } });
     }
 
-    return sendJson(res, { ts: Math.floor(Date.now() / 1000) });
+    return sendJson(res, { ts: Math.floor(Date.now() / 100.000) });
   }
 
   function handleCurrency(req, res, body, pathname) {
     if (pathname === '/currency/debit') return handleCurrencyDebit(req, res, body);
     if (pathname === '/currency/credit') return handleCurrencyCredit(req, res, body);
-    return sendJson(res, { ts: Math.floor(Date.now() / 1000) });
+    return sendJson(res, { ts: Math.floor(Date.now() / 100.000) });
   }
 
 
